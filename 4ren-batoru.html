@@ -5,7 +5,7 @@
 <style>
 :root{color-scheme:dark;box-sizing:border-box}
 html,body{height:100%;margin:0;background:#111;font-family:-apple-system,"Hiragino Sans",sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
-#g{box-sizing:border-box;display:grid;grid-template:minmax(0,1fr) minmax(0,1fr)/minmax(0,1fr) minmax(0,1fr);gap:4px;height:100%;height:100dvh;padding:calc(env(safe-area-inset-top,0px) + 4px) 4px calc(env(safe-area-inset-bottom,0px) + 4px)}
+#g{box-sizing:border-box;position:fixed;left:0;top:0;width:100%;display:grid;grid-template:minmax(0,1fr) minmax(0,1fr)/minmax(0,1fr) minmax(0,1fr);gap:4px;height:100%;padding:calc(env(safe-area-inset-top,0px) + 4px) 4px calc(env(safe-area-inset-bottom,0px) + 4px)}
 .z{overflow:hidden;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;transition:filter .1s}
 .z:active{filter:brightness(1.3)}
 .z:nth-child(-n+2){transform:rotate(180deg)}
@@ -19,7 +19,7 @@ html,body{height:100%;margin:0;background:#111;font-family:-apple-system,"Hiragi
 #g.online .z:nth-child(-n+2){transform:none}
 #onlineBtn{position:fixed;left:50%;top:calc(50% + 54px);transform:translateX(-50%);z-index:9;font-size:16px;font-weight:800;padding:12px 22px;border-radius:40px;border:4px solid #111;background:#3b82f6;color:#fff;white-space:nowrap}
 #status{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);z-index:25;background:rgba(0,0,0,.68);color:#fff;font-size:13px;font-weight:700;padding:7px 14px;border-radius:999px;display:none;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
-#hv{position:fixed;inset:0;z-index:8;display:none;background:#0b1220;touch-action:none}
+#hv{position:fixed;left:0;top:0;width:100%;height:100%;z-index:8;display:none;background:#0b1220;touch-action:none}
 #hv img{width:100%;height:100%;display:block;object-fit:fill;pointer-events:none}
 #lobby{position:fixed;inset:0;z-index:30;background:rgba(10,10,14,.94);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;padding:24px 20px;box-sizing:border-box;text-align:center;overflow-y:auto}
 #lobby.open{display:flex}
@@ -74,6 +74,20 @@ html,body{height:100%;margin:0;background:#111;font-family:-apple-system,"Hiragi
 </div>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
+// ゲーム画面を「実際に見えている領域」(visualViewport) ぴったりに合わせる。
+// LINE内ブラウザやiOS Safariのツールバーで 100dvh がずれて画面端が隠れる問題への対策。
+function fitView(){
+  const vv=window.visualViewport;
+  const w=vv?vv.width:window.innerWidth,h=vv?vv.height:window.innerHeight;
+  const x=vv?vv.offsetLeft:0,y=vv?vv.offsetTop:0;
+  const els=[document.getElementById('g'),document.getElementById('hv')];
+  document.querySelectorAll('.vfit').forEach(el=>els.push(el));
+  els.forEach(el=>{if(!el)return;el.style.left=x+'px';el.style.top=y+'px';el.style.width=w+'px';el.style.height=h+'px'});
+}
+if(window.visualViewport){visualViewport.addEventListener('resize',fitView);visualViewport.addEventListener('scroll',fitView)}
+window.addEventListener('resize',fitView);
+window.addEventListener('orientationchange',fitView);
+fitView();
 const Z=[...document.querySelectorAll('.z')],B=document.getElementById('start');
 let total=[0,0,0,0],hand=null,up=null;
 Z.forEach((z,i)=>{z.addEventListener('pointerdown',e=>{e.preventDefault();if(ONLINE&&i!==myIdx)return;hand&&hand(i,e)});
@@ -595,8 +609,8 @@ async function jump(){
 async function hockey(){
   await cd('🏒エアホッケー','赤青チーム vs 黄緑チーム\n3点先取で勝ち（60秒）\n勝ったチームの2人に+3点');
   const WIN=3,LIM=60000,COL=['#e5484d','#3b82f6','#22a559','#d9a400'],TN=['赤青','黄緑'];
-  const wrap=document.createElement('div');wrap.style.cssText='position:fixed;inset:0;z-index:8;box-sizing:border-box;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);background:#0b1220;touch-action:none';
-  const cv=document.createElement('canvas');cv.style.cssText='width:100%;height:100%;display:block;touch-action:none';wrap.appendChild(cv);document.body.appendChild(wrap);window.__cv=cv;
+  const wrap=document.createElement('div');wrap.className='vfit';wrap.style.cssText='position:fixed;left:0;top:0;width:100%;height:100%;z-index:8;box-sizing:border-box;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);background:#0b1220;touch-action:none';
+  const cv=document.createElement('canvas');cv.style.cssText='width:100%;height:100%;display:block;touch-action:none';wrap.appendChild(cv);document.body.appendChild(wrap);fitView();window.__cv=cv;
   const g=cv.getContext('2d');
   let W,H,R,RP,GX0,GX1,PM,VM,sc=[0,0],state='play',timer=0,left=LIM,last=performance.now(),win=-1,raf=0,done=null;
   const pads=[0,1,2,3].map(()=>({x:0,y:0,tx:0,ty:0,vx:0,vy:0,id:null})),puck={x:0,y:0,vx:0,vy:0};
