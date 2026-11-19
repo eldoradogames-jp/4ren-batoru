@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>4人バトル!</title>
+<style>
+:root{color-scheme:dark;box-sizing:border-box}
+html,body{height:100%;margin:0;background:#111;font-family:-apple-system,"Hiragino Sans",sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+#g{box-sizing:border-box;display:grid;grid-template:minmax(0,1fr) minmax(0,1fr)/minmax(0,1fr) minmax(0,1fr);gap:4px;height:100%;height:100dvh;padding:calc(env(safe-area-inset-top,0px) + 4px) 4px calc(env(safe-area-inset-bottom,0px) + 4px)}
+.z{overflow:hidden;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;transition:filter .1s}
+.z:active{filter:brightness(1.3)}
+.z:nth-child(-n+2){transform:rotate(180deg)}
+.z.go{box-shadow:inset 0 0 0 8px #fff}
+.m{font-size:clamp(20px,6.5vw,38px);font-weight:800;white-space:pre-line;line-height:1.3;padding:0 8px;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere}.m.ins{font-size:clamp(13px,3.9vw,20px);line-height:1.45;font-weight:700}
+.s{position:absolute;margin-top:0;opacity:.85;font-size:18px;font-weight:700}
+.z{position:relative}.s{bottom:10px}
+#start{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9;font-size:22px;font-weight:800;padding:16px 28px;border-radius:40px;border:4px solid #111;background:#fff;color:#111}
+.t{position:absolute;font-size:46px;padding:10px;z-index:2;line-height:1}
+.o{display:flex;flex-wrap:wrap;justify-content:center;max-width:100%;gap:6px;margin-top:6px}.o.g{display:grid;grid-template-columns:repeat(3,46px)}.o b{background:#fff3;border-radius:12px;padding:10px 0;min-width:46px;font-size:20px;line-height:1.1}.o.g b{min-width:0}
+#g.online .z:nth-child(-n+2){transform:none}
+#onlineBtn{position:fixed;left:50%;top:calc(50% + 54px);transform:translateX(-50%);z-index:9;font-size:16px;font-weight:800;padding:12px 22px;border-radius:40px;border:4px solid #111;background:#3b82f6;color:#fff;white-space:nowrap}
+#status{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);z-index:25;background:rgba(0,0,0,.68);color:#fff;font-size:13px;font-weight:700;padding:7px 14px;border-radius:999px;display:none;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
+#hv{position:fixed;inset:0;z-index:8;display:none;background:#0b1220;touch-action:none}
+#hv img{width:100%;height:100%;display:block;object-fit:fill;pointer-events:none}
+#lobby{position:fixed;inset:0;z-index:30;background:rgba(10,10,14,.94);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;padding:24px 20px;box-sizing:border-box;text-align:center;overflow-y:auto}
+#lobby.open{display:flex}
+#lobby h2{margin:0;font-size:24px}
+#lobby p{margin:0;font-size:14px;line-height:1.7;opacity:.92;max-width:360px}
+.lb-btn{display:block;margin:0 auto;font-size:17px;font-weight:800;padding:13px 22px;border-radius:999px;border:none;background:#fff;color:#111;min-width:240px;max-width:90vw}
+.lb-btn.sub{background:#2c2f3a;color:#fff}
+.lb-btn:active{filter:brightness(1.2)}
+#codeIn{font-size:22px;font-weight:800;letter-spacing:4px;text-transform:uppercase;text-align:center;padding:12px;border-radius:12px;border:2px solid #555;background:#1c1e26;color:#fff;width:240px;max-width:90vw;box-sizing:border-box}
+#roomCode{font-size:38px;font-weight:900;letter-spacing:8px;background:#1c1e26;padding:10px 20px;border-radius:14px;border:2px dashed #666}
+.plist{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.plist span{padding:8px 12px;border-radius:999px;font-weight:800;font-size:14px;background:#2c2f3a;opacity:.4;color:#fff}
+.plist span.on{opacity:1}
+.lb-gap{height:12px}
+</style></head><body>
+<div id="g">
+<div class="z" style="background:#e5484d"><div class="m">赤</div><div class="s">0点</div></div>
+<div class="z" style="background:#3b82f6"><div class="m">青</div><div class="s">0点</div></div>
+<div class="z" style="background:#22a559"><div class="m">緑</div><div class="s">0点</div></div>
+<div class="z" style="background:#d9a400"><div class="m">黄</div><div class="s">0点</div></div>
+</div>
+<button id="start">スタート!</button>
+<button id="onlineBtn">🌐 オンライン対戦</button>
+<div id="status"></div>
+<div id="hv"><img id="hvImg" alt=""></div>
+<div id="lobby">
+<h2>オンライン対戦</h2>
+<div id="lobbyMain">
+<p>ホストがルームを作ってコードをLINEなどで共有。ゲストはコードを入れるだけで参加できます（最大4人）。集まらなかった枠は無操作のプレイヤーになります。</p>
+<div class="lb-gap"></div>
+<button class="lb-btn" id="mkRoom">ルームを作る（ホスト）</button>
+<div class="lb-gap"></div>
+<input id="codeIn" maxlength="6" placeholder="コード" autocomplete="off">
+<div class="lb-gap"></div>
+<button class="lb-btn sub" id="joinRoom">コードで参加する</button>
+<div class="lb-gap"></div>
+<button class="lb-btn sub" id="lobbyBack">もどる</button>
+<p id="mainMsg" style="margin-top:12px;color:#ffd43b"></p>
+</div>
+<div id="lobbyRoom" style="display:none">
+<p>ルームコード（LINEなどで共有してね）</p>
+<div id="roomCode">------</div>
+<div class="lb-gap"></div>
+<div class="plist" id="plist"></div>
+<div class="lb-gap"></div>
+<p id="lobbyMsg">参加を待っています…</p>
+<div class="lb-gap"></div>
+<button class="lb-btn" id="roomStart" style="display:none">ゲームスタート!</button>
+<div class="lb-gap"></div>
+<button class="lb-btn sub" id="roomLeave">退出する</button>
+</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const Z=[...document.querySelectorAll('.z')],B=document.getElementById('start');
+let total=[0,0,0,0],hand=null,up=null;
+Z.forEach((z,i)=>{z.addEventListener('pointerdown',e=>{e.preventDefault();if(ONLINE&&i!==myIdx)return;hand&&hand(i,e)});
+z.addEventListener('pointerup',e=>{if(ONLINE&&i!==myIdx)return;up&&up(i,e)});z.addEventListener('pointercancel',e=>{if(ONLINE&&i!==myIdx)return;up&&up(i,e)})});
+const set=(i,m)=>Z[i].querySelector('.m').textContent=m;
+const all=m=>Z.forEach((_,i)=>set(i,m));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const upd=()=>Z.forEach((z,i)=>z.querySelector('.s').textContent=total[i]+'点');
+const until=async(f,ms)=>{const s=performance.now();while(!f()&&performance.now()-s<ms)await sleep(30)};
+async function cd(t,r){all(t+'\n'+r);const ms=Z.map(z=>z.querySelector('.m'));ms.forEach(m=>m.classList.add('ins'));await sleep(3500);ms.forEach(m=>m.classList.remove('ins'));for(const n of[3,2,1]){all(n);await sleep(700)}}
+async function award(v){
+  const idx=[0,1,2,3].sort((a,b)=>v[a]-v[b]),p=[3,2,1,0];
+  idx.forEach((pl,k)=>{const rk=v.filter(x=>x<v[pl]).length;total[pl]+=p[rk];set(pl,(rk+1)+'位\n+'+p[rk]+'点')});
+  upd();await sleep(2500);
+}
+async function reaction(){
+  await cd('⚡反射神経','合図で即タップ!\nフライングは失格');
+  all('待て…');const res=[null,null,null,null];let t0=null;
+  const done=()=>res.every(r=>r!==null);
+  hand=i=>{if(res[i]!==null)return;
+    if(t0===null){res[i]=Infinity;set(i,'フライング!')}
+    else{res[i]=performance.now()-t0;set(i,Math.round(res[i])+'ms')}};
+  await sleep(2000+Math.random()*3000);
+  if(!done()){t0=performance.now();Z.forEach((z,i)=>{z.classList.add('go');if(res[i]===null)set(i,'今!')});await until(done,3000)}
+  hand=null;Z.forEach(z=>z.classList.remove('go'));
+  res.forEach((r,i)=>{if(r===null){res[i]=Infinity;set(i,'遅い…')}});
+  await sleep(1000);await award(res);
+}
+async function mash(){
+  await cd('👊連打バトル','8秒間で一番連打した人が勝ち');
+  const c=[0,0,0,0];all('0');hand=i=>{c[i]++;set(i,c[i])};
+  await sleep(8000);hand=null;all('終了!');await sleep(1000);await award(c.map(x=>-x));
+}
+async function stop(){
+  await cd('⏱ぴったりストップ','5.00秒でタップ!\n途中から数字が消える');
+  const r=[null,null,null,null];const t0=performance.now();
+  hand=i=>{if(r[i]!==null)return;const t=(performance.now()-t0)/1000;r[i]=Math.abs(t-5);set(i,t.toFixed(2)+'秒\n差 '+r[i].toFixed(2))};
+  const s=performance.now();
+  while(!r.every(x=>x!==null)&&performance.now()-s<10000){
+    const t=(performance.now()-t0)/1000;
+    r.forEach((x,i)=>{if(x===null)set(i,t<1.5?t.toFixed(2):'？')});await sleep(50)}
+  hand=null;r.forEach((x,i)=>{if(x===null)r[i]=Infinity});
+  await sleep(1000);await award(r);
+}
+async function bomb(){
+  await cd('💣チキンレース','数字が増える!爆発前にタップで獲得\n爆発後は0点');
+  const r=[null,null,null,null];let v=0;const lim=30+Math.floor(Math.random()*90);
+  hand=i=>{if(r[i]!==null)return;r[i]=v;set(i,'確保!\n'+v)};
+  all(0);
+  while(v<lim&&!r.every(x=>x!==null)){v++;r.forEach((x,i)=>{if(x===null)set(i,v)});await sleep(100)}
+  hand=null;
+  r.forEach((x,i)=>{if(x===null){r[i]=0;set(i,'💥爆発!\n0')}});
+  await sleep(1200);await award(r.map(x=>-x));
+}
+async function exact(){
+  const n=15+Math.floor(Math.random()*11);
+  await cd('🎯ぴったりタップ',n+'回ちょうど!\n5秒間・回数は見えない');
+  const c=[0,0,0,0];all('GO!');hand=i=>{c[i]++;set(i,'👆')};
+  await sleep(5000);hand=null;all('終了!');await sleep(800);
+  Z.forEach((z,i)=>set(i,c[i]+'回\n差 '+Math.abs(c[i]-n)));
+  await sleep(1500);await award(c.map(x=>Math.abs(x-n)));
+}
+async function fake(){
+  await cd('🃏だまし合図','「今!」の時だけタップ\nニセ合図に注意');
+  all('待て…');const res=[null,null,null,null];let t0=null;
+  const done=()=>res.every(r=>r!==null);
+  hand=i=>{if(res[i]!==null)return;if(t0===null){res[i]=Infinity;set(i,'だまされた!')}else{res[i]=performance.now()-t0;set(i,Math.round(res[i])+'ms')}};
+  const fk=['押せ!','ゴー!','スタート!','いけ!'];
+  const n=3+Math.floor(Math.random()*2);
+  for(let k=0;k<n;k++){await sleep(1000+Math.random()*1200);Z.forEach((z,i)=>{if(res[i]===null)set(i,fk[Math.floor(Math.random()*4)])});await sleep(600);Z.forEach((z,i)=>{if(res[i]===null)set(i,'待て…')})}
+  await sleep(800+Math.random()*1500);
+  if(!done()){t0=performance.now();Z.forEach((z,i)=>{z.classList.add('go');if(res[i]===null)set(i,'今!')});await until(done,3000)}
+  hand=null;Z.forEach(z=>z.classList.remove('go'));
+  res.forEach((r,i)=>{if(r===null){res[i]=Infinity;set(i,'遅い…')}});
+  await sleep(1000);await award(res);
+}
+async function sg(){
+  await cd('🚦ストップ&ゴー','緑のときだけ連打!\n赤で押すと-2点');
+  const c=[0,0,0,0];let g=true;
+  const d=i=>{set(i,(g?'🟢連打!\n':'🔴止まれ!\n')+c[i]);Z[i].classList.toggle('go',g)};
+  hand=i=>{c[i]+=g?1:-2;d(i)};
+  Z.forEach((z,i)=>d(i));
+  const s=performance.now();
+  while(performance.now()-s<10000){await sleep(700+Math.random()*1300);g=!g;Z.forEach((z,i)=>d(i))}
+  hand=null;Z.forEach(z=>z.classList.remove('go'));all('終了!');
+  await sleep(1000);await award(c.map(x=>-x));
+}
+async function roul(){
+  await cd('🎰ルーレット','数字が高速で変わる!\nタップで止めて大きい数字が勝ち\n6秒以内に止めないと0');
+  const v=[0,0,0,0],r=[false,false,false,false];
+  hand=i=>{if(!r[i]){r[i]=true;set(i,'🔒\n'+v[i])}};
+  const s=performance.now();
+  while(!r.every(x=>x)&&performance.now()-s<6000){
+    v.forEach((x,i)=>{if(!r[i]){v[i]=1+Math.floor(Math.random()*9);set(i,v[i])}});await sleep(80)}
+  hand=null;r.forEach((x,i)=>{if(!x){v[i]=0;set(i,'時間切れ\n0')}});
+  await sleep(1200);await award(v.map(x=>-x));
+}
+async function mole(){
+  await cd('🐹もぐらたたき','出てきたもぐらをタップ!\n8秒で多く叩いた人が勝ち');
+  const c=[0,0,0,0],ts=[];
+  const mv=t=>{t.style.left=(10+Math.random()*60)+'%';t.style.top=(18+Math.random()*45)+'%'};
+  Z.forEach((z,i)=>{for(let q=0;q<3;q++){const t=document.createElement('div');t.className='t';t.textContent='🐹';mv(t);
+    t.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();c[i]++;set(i,c[i]);mv(t)});
+    z.appendChild(t);ts.push(t)}});
+  all(0);await sleep(8000);
+  ts.forEach(t=>t.remove());all('終了!');await sleep(1000);await award(c.map(x=>-x));
+}
+const shuf=a=>a.sort(()=>Math.random()-.5);
+async function nums(){
+  await cd('🔢数字タップ','1→6の順にタップ!\n早く終えた人が勝ち');
+  const t=[null,null,null,null],nx=[1,1,1,1],gs=[];const s=performance.now();
+  Z.forEach((z,i)=>{set(i,'つぎ: 1');const g=document.createElement('div');g.className='o g';
+    shuf([1,2,3,4,5,6]).forEach(n=>{const b=document.createElement('b');b.textContent=n;
+      b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();
+        if(n!==nx[i]||t[i]!==null)return;b.style.opacity=.2;nx[i]++;
+        if(nx[i]>6){t[i]=performance.now()-s;set(i,'✔ '+(t[i]/1000).toFixed(2)+'秒')}else set(i,'つぎ: '+nx[i])});
+      g.appendChild(b)});z.appendChild(g);gs.push(g)});
+  await until(()=>t.every(x=>x!==null),15000);
+  gs.forEach(g=>g.remove());t.forEach((x,i)=>{if(x===null){t[i]=Infinity;set(i,'時間切れ')}});
+  await sleep(1200);await award(t);
+}
+async function calc(){
+  await cd('🧮暗算ダッシュ','正解+1 / 不正解-1\n10秒間');
+  const c=[0,0,0,0],os=[];const R=n=>1+Math.floor(Math.random()*n);
+  const mk=i=>{const a=R(9),b=R(9),ans=a+b;set(i,a+' + '+b+'\n('+c[i]+')');
+    const o=os[i];o.innerHTML='';
+    shuf([ans,...shuf([ans-2,ans-1,ans+1,ans+2]).slice(0,2)]).forEach(v=>{const e=document.createElement('b');e.textContent=v;
+      e.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();if(!live)return;c[i]+=v===ans?1:-1;mk(i)});o.appendChild(e)})};
+  let live=true;
+  Z.forEach((z,i)=>{const o=document.createElement('div');o.className='o';z.appendChild(o);os.push(o);mk(i)});
+  await sleep(10000);live=false;os.forEach(o=>o.remove());
+  Z.forEach((z,i)=>set(i,c[i]+'点'));await sleep(1200);await award(c.map(x=>-x));
+}
+async function gauge(){
+  const tg=10+Math.floor(Math.random()*81);
+  await cd('🎚ゲージストップ','数字が往復する!\n'+tg+'にいちばん近く止めた人が勝ち');
+  const r=[false,false,false,false],cur=[0,0,0,0],d=[999,999,999,999];
+  hand=i=>{if(r[i])return;r[i]=true;d[i]=Math.abs(cur[i]-tg);set(i,'🔒'+cur[i]+'\n差 '+d[i])};
+  const s=performance.now();
+  while(!r.every(x=>x)&&performance.now()-s<8000){
+    const t=(performance.now()-s)/1000;
+    cur.forEach((_,i)=>{if(!r[i]){cur[i]=Math.round(50+50*Math.sin(t*5.5+i*1.7));set(i,'目標 '+tg+'\n'+cur[i])}});await sleep(40)}
+  hand=null;r.forEach((x,i)=>{if(!x)set(i,'時間切れ')});
+  await sleep(1200);await award(d);
+}
+const CL=[['あか','#e5484d'],['あお','#2f6fe0'],['みどり','#1e8e4e'],['きいろ','#d9a400']];
+const RR=n=>1+Math.floor(Math.random()*n);
+async function big(){
+  await cd('🔎大きいのはどっち?','大きい数字をタップ!\n正解+1 / 不正解-1・10秒');
+  const c=[0,0,0,0],os=[];let live=true;
+  const mk=i=>{const x=10+RR(80),y=x+(RR(2)===1?1:-1)*RR(9);set(i,'('+c[i]+')');
+    const o=os[i];o.innerHTML='';
+    [x,y].forEach(v=>{const e=document.createElement('b');e.textContent=v;
+      e.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();if(!live)return;c[i]+=v===Math.max(x,y)?1:-1;mk(i)});o.appendChild(e)})};
+  Z.forEach((z,i)=>{const o=document.createElement('div');o.className='o';z.appendChild(o);os.push(o);mk(i)});
+  await sleep(10000);live=false;os.forEach(o=>o.remove());
+  Z.forEach((z,i)=>set(i,c[i]+'点'));await sleep(1200);await award(c.map(x=>-x));
+}
+async function hue(){
+  await cd('👁色さがし','1つだけ色がちがう!\n当たり+1 / はずれ-1・10秒');
+  const c=[0,0,0,0],gs=[];let live=true;
+  const mk=i=>{const g=gs[i];g.innerHTML='';const h=RR(360),odd=RR(9)-1;set(i,'('+c[i]+')');
+    for(let k=0;k<9;k++){const e=document.createElement('b');e.style.height='44px';e.style.padding='0';
+      e.style.background='hsl('+h+',70%,'+(k===odd?55:45)+'%)';
+      e.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();if(!live)return;
+        if(k===odd){c[i]++;mk(i)}else{c[i]--;set(i,'('+c[i]+')')}});g.appendChild(e)}};
+  Z.forEach((z,i)=>{const g=document.createElement('div');g.className='o g';z.appendChild(g);gs.push(g);mk(i)});
+  await sleep(10000);live=false;gs.forEach(g=>g.remove());
+  Z.forEach((z,i)=>set(i,c[i]+'点'));await sleep(1200);await award(c.map(x=>-x));
+}
+async function stroop(){
+  await cd('🎨いろ当て','色の名前をタップ!\n文字の色にだまされるな・10秒');
+  const c=[0,0,0,0],os=[];let live=true;
+  const mk=i=>{const ans=CL[RR(4)-1],m=Z[i].querySelector('.m');set(i,'■■■');
+    m.style.cssText='background:#fff;color:'+ans[1]+';padding:2px 14px;border-radius:10px;font-size:30px';
+    const o=os[i];o.innerHTML='';
+    shuf([ans,...shuf(CL.filter(x=>x!==ans)).slice(0,2)]).forEach(opt=>{const e=document.createElement('b');e.textContent=opt[0];
+      e.style.cssText='background:#fff;color:'+shuf(CL.filter(x=>x!==opt))[0][1]+';font-size:20px;padding:10px 8px';
+      e.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();if(!live)return;c[i]+=opt===ans?1:-1;mk(i)});o.appendChild(e)})};
+  Z.forEach((z,i)=>{const o=document.createElement('div');o.className='o';z.appendChild(o);os.push(o);mk(i)});
+  await sleep(10000);live=false;os.forEach(o=>o.remove());
+  Z.forEach(z=>z.querySelector('.m').style.cssText='');
+  Z.forEach((z,i)=>set(i,c[i]+'点'));await sleep(1200);await award(c.map(x=>-x));
+}
+async function slow(){
+  await cd('🐢ビリが勝ち','いちばん遅く押した人が勝ち!\n8秒以内に押さないと失格');
+  all('いつ押す…?');const r=[null,null,null,null];const s=performance.now();
+  hand=i=>{if(r[i]===null){r[i]=performance.now()-s;set(i,'🔒押した!')}};
+  await until(()=>r.every(x=>x!==null),8000);hand=null;
+  r.forEach((x,i)=>set(i,x===null?'失格':(x/1000).toFixed(2)+'秒'));
+  await sleep(1500);await award(r.map(x=>x===null?Infinity:-x));
+}
+async function mem(){
+  const seq=shuf([1,2,3,4,5,6,7,8,9]).slice(0,4);
+  await cd('🧠おぼえてタップ','数字を覆えて同じ順にタップ!\n早く正解した人が勝ち');
+  all(seq.join('  '));await sleep(2500);
+  const t=[null,null,null,null],nx=[0,0,0,0],gs=[];const s=performance.now();
+  Z.forEach((z,i)=>{set(i,'？ ？ ？ ？');const g=document.createElement('div');g.className='o g';
+    for(let n=1;n<=9;n++){const b=document.createElement('b');b.textContent=n;
+      b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(t[i]!==null)return;
+        if(n===seq[nx[i]]){nx[i]++;if(nx[i]===4){t[i]=performance.now()-s;set(i,'✔ '+(t[i]/1000).toFixed(2)+'秒')}else set(i,'✔'.repeat(nx[i])+' ？'.repeat(4-nx[i]))}
+        else{t[i]=Infinity;set(i,'✖ まちがい')}});
+      g.appendChild(b)}
+    z.appendChild(g);gs.push(g)});
+  await until(()=>t.every(x=>x!==null),15000);
+  gs.forEach(g=>g.remove());t.forEach((x,i)=>{if(x===null){t[i]=Infinity;set(i,'時間切れ')}});
+  await sleep(1200);await award(t);
+}
+async function dice(){
+  await cd('🎲チキンダイス','🎲で足していく、1が出たら0点!\n✋で確定・最大10秒');
+  const sum=[0,0,0,0],lock=[false,false,false,false],bust=[false,false,false,false],os=[];let live=true;
+  const busy=[false,false,false,false],fc=['','','',''];
+  const show=i=>set(i,fc[i]+(bust[i]?'💥 1が出た!\n0':(lock[i]?'🔒 ':'')+sum[i]));
+  Z.forEach((z,i)=>{show(i);const o=document.createElement('div');o.className='o';
+    [['🎲',async()=>{const F=['⚀','⚁','⚂','⚃','⚄','⚅'];for(let k=0;k<9;k++){set(i,F[RR(6)-1]+'\n'+sum[i]);await sleep(70)}
+      const v=RR(6);fc[i]=F[v-1]+' 出目 '+v+'\n';set(i,fc[i]+'…');await sleep(500);
+      if(v===1){sum[i]=0;bust[i]=true;lock[i]=true}else sum[i]+=v}],['✋',()=>{lock[i]=true}]].forEach(([l,f])=>{
+      const b=document.createElement('b');b.textContent=l;b.style.padding='12px 22px';
+      b.addEventListener('pointerdown',async e=>{e.preventDefault();e.stopPropagation();if(!live||lock[i]||busy[i])return;busy[i]=true;await f();busy[i]=false;show(i)});o.appendChild(b)});
+    z.appendChild(o);os.push(o)});
+  await until(()=>lock.every(x=>x),10000);live=false;await until(()=>!busy.some(x=>x),3000);os.forEach(o=>o.remove());
+  Z.forEach((z,i)=>set(i,bust[i]?'💥 0':sum[i]+'点'));await sleep(1500);await award(sum.map(x=>-x));
+}
+async function rps(){
+  await cd('✌️勝ちじゃんけん','相手の手に勝つ手をタップ!\n正解+1 / 不正解-1・10秒');
+  const H=['✊','✌️','✋'],c=[0,0,0,0],os=[];let live=true;
+  const mk=i=>{const h=RR(3)-1;set(i,H[h]+'\n('+c[i]+')');const o=os[i];o.innerHTML='';
+    H.forEach((e,k)=>{const b=document.createElement('b');b.textContent=e;b.style.padding='10px 14px';
+      b.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();if(!live)return;c[i]+=k===(h+2)%3?1:-1;mk(i)});o.appendChild(b)})};
+  Z.forEach((z,i)=>{const o=document.createElement('div');o.className='o';z.appendChild(o);os.push(o);mk(i)});
+  await sleep(10000);live=false;os.forEach(o=>o.remove());
+  Z.forEach((z,i)=>set(i,c[i]+'点'));await sleep(1200);await award(c.map(x=>-x));
+}
+async function missile(){
+  await cd('🚀ミサイルバトル','もぐらをタップで+1点!\n同時に相手へミサイル発射\n当たった相手は-1点');
+  const sc=[0,0,0,0],ts=[];
+  const mv=t=>{t.style.left=(10+Math.random()*60)+'%';t.style.top=(18+Math.random()*45)+'%'};
+  const fire=(a,b)=>{const ra=Z[a].getBoundingClientRect(),rb=Z[b].getBoundingClientRect();
+    const x0=ra.left+ra.width/2-18,y0=ra.top+ra.height/2-18,x1=rb.left+rb.width/2-18,y1=rb.top+rb.height/2-18;
+    const rot=Math.atan2(y1-y0,x1-x0)*180/Math.PI+45;
+    const m=document.createElement('div');m.textContent='🚀';
+    m.style.cssText='position:fixed;left:0;top:0;font-size:36px;line-height:1;z-index:20;pointer-events:none';
+    document.body.appendChild(m);
+    const an=m.animate([{transform:'translate('+x0+'px,'+y0+'px) rotate('+rot+'deg)'},{transform:'translate('+x1+'px,'+y1+'px) rotate('+rot+'deg)'}],{duration:700,easing:'ease-in'});
+    an.onfinish=()=>{m.remove();sc[b]=Math.max(0,sc[b]-1);set(b,sc[b]);Z[b].animate([{filter:'brightness(2.5)'},{filter:'none'}],250)}};
+  Z.forEach((z,i)=>{for(let q=0;q<4;q++){const t=document.createElement('div');t.className='t';t.textContent='🐹';mv(t);
+    t.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();
+      sc[i]++;set(i,sc[i]);mv(t);
+      const ot=[0,1,2,3].filter(k=>k!==i);fire(i,ot[Math.floor(Math.random()*3)])});
+    z.appendChild(t);ts.push(t)}});
+  all(0);await sleep(12000);
+  ts.forEach(t=>t.remove());await sleep(900);
+  Z.forEach((z,i)=>set(i,sc[i]+'点'));await sleep(1200);await award(sc.map(x=>-x));
+}
+async function flash(){
+  await cd('⚡フラッシュ暗算','次々出る数字を全部足そう!\n3問・1問5秒ほど\n3択で答える');
+  const corr=[0,0,0,0],tm=[0,0,0,0];
+  for(let q=1;q<=3;q++){
+    all('第'+q+'問\nよく見て!');await sleep(1200);
+    const nums=[0,0,0,0].map(()=>RR(21)+4),ans=nums.reduce((a,b)=>a+b,0);
+    Z.forEach(z=>z.querySelector('.m').style.fontSize='72px');
+    for(const n of nums){all(n);await sleep(450);all('　');await sleep(150)}
+    Z.forEach(z=>z.querySelector('.m').style.fontSize='');
+    all('答えは？');
+    const os=[],lk=[false,false,false,false];let closed=false;const t0=performance.now();
+    Z.forEach((z,i)=>{const o=document.createElement('div');o.className='o';
+      shuf([ans,...shuf([ans-10,ans-2,ans-1,ans+1,ans+2,ans+10]).slice(0,2)]).forEach(v=>{const b=document.createElement('b');b.textContent=v;b.style.padding='10px 12px';
+        b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(closed||lk[i])return;lk[i]=true;
+          tm[i]+=(performance.now()-t0)/1000;if(v===ans){corr[i]++;set(i,'⭕')}else set(i,'❌')});o.appendChild(b)});
+      z.appendChild(o);os.push(o)});
+    await until(()=>lk.every(x=>x),3000);closed=true;
+    lk.forEach((l,i)=>{if(!l){tm[i]+=3;set(i,'時間切れ')}});
+    os.forEach(o=>o.remove());await sleep(500);all('答え '+ans);await sleep(1000);
+  }
+  Z.forEach((z,i)=>set(i,corr[i]+'/3問正解'));await sleep(1500);
+  await award(corr.map((c,i)=>-c*100+tm[i]));
+}
+async function bombs(){
+  await cd('💣爆弾よけ','🐹をタップで+1点\n💣をタップすると-3点\n絵柄はどんどん変わる・10秒');
+  const c=[0,0,0,0],its=[];let live=true;
+  const roll=t=>{t.style.left=(8+Math.random()*62)+'%';t.style.top=(16+Math.random()*48)+'%';t.textContent=Math.random()<.6?'🐹':'💣'};
+  Z.forEach((z,i)=>{for(let q=0;q<4;q++){const t=document.createElement('div');t.className='t';roll(t);
+    t.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(!live)return;
+      c[i]+=t.textContent==='🐹'?1:-3;set(i,c[i]);roll(t)});
+    z.appendChild(t);its.push(t)}});
+  all(0);const s=performance.now();
+  while(performance.now()-s<10000){await sleep(600);roll(its[Math.floor(Math.random()*its.length)])}
+  live=false;its.forEach(t=>t.remove());
+  Z.forEach((z,i)=>set(i,c[i]+'点'));await sleep(1200);await award(c.map(x=>-x));
+}
+async function arrow(){
+  await cd('🔀矢印ダッシュ','「同じ」→矢印と同じ向きをタップ\n「逆」→反対向きをタップ\n正解+1 / 不正解-1・10秒');
+  const c=[0,0,0,0],os=[];let live=true;
+  const mk=i=>{const d=RR(2)-1,rev=RR(2)===1,ok=rev?1-d:d;
+    set(i,(rev?'逆 ':'同じ ')+['⬅️','➡️'][d]+'\n('+c[i]+')');
+    const o=os[i];o.innerHTML='';
+    ['⬅️','➡️'].forEach((e,k)=>{const b=document.createElement('b');b.textContent=e;b.style.padding='12px 22px';
+      b.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();if(!live)return;c[i]+=k===ok?1:-1;mk(i)});o.appendChild(b)})};
+  Z.forEach((z,i)=>{const o=document.createElement('div');o.className='o';z.appendChild(o);os.push(o);mk(i)});
+  await sleep(10000);live=false;os.forEach(o=>o.remove());
+  Z.forEach((z,i)=>set(i,c[i]+'点'));await sleep(1200);await award(c.map(x=>-x));
+}
+async function swipe(){
+  await cd('🧭スワイプ','出た向きに指をスワイプ!\n正解+1 / 不正解-1・10秒');
+  const D=['⬆️','⬇️','⬅️','➡️'],c=[0,0,0,0],cur=[0,0,0,0],st=[null,null,null,null];let live=true;
+  const mk=i=>{cur[i]=RR(4)-1;set(i,D[cur[i]]+'\n('+c[i]+')')};
+  Z.forEach((z,i)=>mk(i));
+  hand=(i,e)=>{st[i]=[e.clientX,e.clientY]};
+  up=(i,e)=>{if(!live||!st[i])return;let dx=e.clientX-st[i][0],dy=e.clientY-st[i][1];st[i]=null;
+    if(Math.hypot(dx,dy)<30)return;if(i<2){dx=-dx;dy=-dy}
+    const d=Math.abs(dx)>Math.abs(dy)?(dx>0?3:2):(dy>0?1:0);c[i]+=d===cur[i]?1:-1;mk(i)};
+  await sleep(10000);live=false;hand=null;up=null;
+  Z.forEach((z,i)=>set(i,c[i]+'点'));await sleep(1200);await award(c.map(x=>-x));
+}
+async function minority(){
+  await cd('🙈少数派が勝ち','🔴か🔵を選ぼう!\n人数が少ないほうが勝ち\n同数は引き分け・6秒以内');
+  const pk=[null,null,null,null],os=[];
+  Z.forEach((z,i)=>{set(i,'どっち?');const o=document.createElement('div');o.className='o';
+    ['🔴','🔵'].forEach((e,k)=>{const b=document.createElement('b');b.textContent=e;b.style.padding='12px 26px';
+      b.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();if(pk[i]!==null)return;pk[i]=k;set(i,'🔒決定!');o.remove()});o.appendChild(b)});
+    z.appendChild(o);os.push(o)});
+  await until(()=>pk.every(x=>x!==null),6000);os.forEach(o=>o.remove());
+  const n=[0,1].map(k=>pk.filter(x=>x===k).length);
+  Z.forEach((z,i)=>set(i,pk[i]===null?'未選択':['🔴','🔵'][pk[i]]+'\n🔴'+n[0]+' 🔵'+n[1]));
+  await sleep(2200);
+  await award(pk.map(x=>x===null?2:(n[0]===0||n[1]===0||n[0]===n[1]?0:(n[x]<n[1-x]?0:1))));
+}
+async function hold(){
+  await cd('🫸長押し勝負','自分のエリアを指で押し続けよう!\n最後まで押していた人が勝ち\n離したらアウト');
+  all('指を置いて…');
+  const pr=[null,null,null,null],t=[null,null,null,null];const s=performance.now();
+  hand=i=>{if(pr[i]===null&&performance.now()-s<3000){pr[i]=performance.now();set(i,'🫸ホールド中')}};
+  up=i=>{if(pr[i]!==null&&t[i]===null){t[i]=performance.now()-pr[i];set(i,'💨アウト\n'+(t[i]/1000).toFixed(1)+'秒')}};
+  await sleep(3000);
+  pr.forEach((x,i)=>{if(x===null){t[i]=0;set(i,'押してない')}});
+  const msgs=['😱 もう無理?','🐜 かゆい!','📱 通知が…','☕ 休憩しよう?','🫸 やめてもいいよ'];
+  while(performance.now()-s<25000){
+    await sleep(300);
+    const h=[0,1,2,3].filter(i=>pr[i]!==null&&t[i]===null);
+    if(h.length<=1)break;
+    if(Math.random()<.15)h.forEach(i=>set(i,msgs[RR(msgs.length)-1]))}
+  hand=null;up=null;
+  [0,1,2,3].forEach(i=>{if(pr[i]!==null&&t[i]===null){t[i]=performance.now()-pr[i];set(i,'🏆 '+(t[i]/1000).toFixed(1)+'秒')}});
+  await sleep(1500);await award(t.map(x=>-x));
+}
+async function rhythm(){
+  await cd('🥁リズムタップ','4拍のリズムを見て\n続きの6拍を同じ間隔でタップ!\n2セット・ズレが小さい人が勝ち');
+  const err=[0,0,0,0];
+  for(let q=0;q<2;q++){
+    const iv=350+RR(250);
+    all('よく見て');await sleep(800);
+    const t0=performance.now();
+    for(let k=0;k<4;k++){
+      await sleep(Math.max(0,t0+k*iv-performance.now()));
+      Z.forEach(z=>z.classList.add('go'));all('♪ '+(k+1));await sleep(120);Z.forEach(z=>z.classList.remove('go'));
+    }
+    all('続けて!');
+    const tp=[[],[],[],[]];
+    hand=i=>{if(tp[i].length<6){tp[i].push(performance.now());set(i,'●'.repeat(tp[i].length)+'○'.repeat(6-tp[i].length))}};
+    const end=t0+iv*9+700;
+    await until(()=>tp.every(a=>a.length===6),Math.max(0,end-performance.now()));
+    hand=null;
+    const es=tp.map(a=>{let e=0;for(let k=0;k<6;k++)e+=a[k]===undefined?iv:Math.min(iv,Math.abs(a[k]-(t0+(k+4)*iv)));return e});
+    es.forEach((e,i)=>{err[i]+=e;set(i,'ズレ 平均\n'+Math.round(e/6)+'ms')});
+    await sleep(1500);
+  }
+  await award(err);
+}
+async function coop(){
+  await cd('🤝シンクロタップ','4人でタイミングを合わせよう!\n全員が0.3秒以内にタップできたら成功\n相談OK・3回挑戦・成功ごとに全員+1点');
+  let ok=0;
+  for(let q=1;q<=3;q++){
+    all('第'+q+'回\nせーので!');
+    const tp=[null,null,null,null];
+    hand=i=>{if(tp[i]===null){tp[i]=performance.now();set(i,'🔒')}};
+    await until(()=>tp.every(x=>x!==null),8000);hand=null;
+    if(tp.every(x=>x!==null)){const sp=Math.max(...tp)-Math.min(...tp),good=sp<300;if(good)ok++;
+      all((good?'🎉成功!':'❌ざんねん')+'\nズレ '+(sp/1000).toFixed(2)+'秒')}
+    else all('⏰時間切れ');
+    await sleep(1800);
+  }
+  total=total.map(x=>x+ok);upd();all('成功 '+ok+'/3\n全員+'+ok+'点');await sleep(2500);
+}
+async function relay(){
+  await cd('💣爆弾リレー','爆弾が回ってくる!\n自分に来たらタップで他の人に投げよう\nいつ爆発するかはナゾ・4回で爆発が少ない人が勝ち');
+  const hit=[0,0,0,0];let holder=0;
+  const show=()=>Z.forEach((z,i)=>{z.classList.toggle('go',i===holder);set(i,i===holder?'💣\nタップ!':'😌')});
+  for(let r=0;r<4;r++){
+    holder=Math.floor(Math.random()*4);show();
+    hand=i=>{if(i!==holder)return;const o=[0,1,2,3].filter(k=>k!==i);holder=o[Math.floor(Math.random()*3)];show()};
+    const end=performance.now()+3000+Math.random()*4500;
+    while(performance.now()<end)await sleep(20);
+    hand=null;hit[holder]++;
+    Z.forEach((z,i)=>{z.classList.remove('go');set(i,i===holder?'💥\nドカーン!':'😅 '+hit[i])});
+    await sleep(1500);
+  }
+  Z.forEach((z,i)=>set(i,'爆発 '+hit[i]+'回'));await sleep(1500);
+  await award(hit);
+}
+async function pairs(){
+  await cd('🎴神経衰弱','同じ絵柄を2枚ずつそろえよう!\n全部そろえた時間で勝負');
+  const E=shuf(['🍎','🐶','🚗','⭐','🍌','🐱','🎈','🍕']).slice(0,3),L=shuf([...E,...E]);
+  const t=[null,null,null,null],gs=[];const s=performance.now();
+  Z.forEach((z,i)=>{set(i,'❓');const g=document.createElement('div');g.className='o g';let open=[],done=0,busy=false;
+    L.forEach(e=>{const b=document.createElement('b');b.textContent='❓';b.style.height='44px';b.style.padding='0';b.style.lineHeight='44px';
+      b.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();
+        if(busy||t[i]!==null||b.dataset.d||open.includes(b))return;
+        b.textContent=e;open.push(b);
+        if(open.length===2){
+          if(open[0].textContent===open[1].textContent){open.forEach(x=>{x.dataset.d=1;x.style.opacity=.3});open=[];done++;
+            if(done===3){t[i]=performance.now()-s;set(i,'✔ '+(t[i]/1000).toFixed(2)+'秒')}}
+          else{busy=true;setTimeout(()=>{open.forEach(x=>x.textContent='❓');open=[];busy=false},500)}}});
+      g.appendChild(b)});
+    z.appendChild(g);gs.push(g)});
+  await until(()=>t.every(x=>x!==null),25000);
+  gs.forEach(g=>g.remove());t.forEach((x,i)=>{if(x===null){t[i]=Infinity;set(i,'時間切れ')}});
+  await sleep(1200);await award(t);
+}
+const QZ=[['日本でいちばん高い山は?','富士山','北岡','槍ヶ岳'],['クモの足は何本?','8本','6本','10本'],['オーストラリアの首都は?','キャンベラ','シドニー','メルボルン'],['人間の骨は約何本?','206本','106本','306本'],['日本一長い川は?','信濃川','利根川','石狩川'],['一番大きい海は?','太平洋','大西洋','インド洋'],['サッカー1チームの人数は?','11人','9人','13人'],['水が凍る温度は?','0℃','10℃','-10℃'],['太陽系で一番大きい惑星は?','木星','土星','地球'],['オリンピックの輪は何個?','5個','4個','6個'],['ピアノの鍵盤の数は?','88','66','100'],['最も軽い元素は?','水素','酸素','ヘリウム']];
+async function quiz(){
+  await cd('❓早押しクイズ','3択クイズ!正解で+1点\n一番早い正解はさらに+1点\n不正解は-1点・全てで5問');
+  const c=[0,0,0,0];
+  for(const [q,a,w1,w2] of shuf([...QZ]).slice(0,5)){
+    const lk=[false,false,false,false],os=[];let first=-1,closed=false;
+    Z.forEach((z,i)=>{set(i,q);z.querySelector('.m').classList.add('ins');const o=document.createElement('div');o.className='o';
+      shuf([a,w1,w2]).forEach(v=>{const b=document.createElement('b');b.textContent=v;b.style.cssText='font-size:16px;padding:9px 10px';
+        b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(closed||lk[i])return;lk[i]=true;
+          if(v===a){c[i]++;if(first<0){first=i;c[i]++}}else c[i]--;set(i,'🔒決定!');o.remove()});o.appendChild(b)});
+      z.appendChild(o);os.push(o)});
+    await until(()=>lk.every(x=>x),8000);closed=true;os.forEach(o=>o.remove());
+    Z.forEach(z=>z.querySelector('.m').classList.remove('ins'));
+    all('正解\n'+a);await sleep(1500);
+  }
+  Z.forEach((z,i)=>set(i,c[i]+'点'));await sleep(1200);await award(c.map(x=>-x));
+}
+async function simon(){
+  await cd('🧠サイモン','光る順番を覚えて同じ順にタップ!\nだんだん長くなる\n長く続けた人が勝ち');
+  const COL=['#ff6b6b','#4dabf7','#51cf66','#ffd43b'],alive=[true,true,true,true],sc=[0,0,0,0],pads=[],cons=[];
+  const seq=[0,0,0,0,0,0,0,0,0].map(()=>RR(4)-1);
+  let L=0,listening=false;const pos=[0,0,0,0],dn=[false,false,false,false];
+  const lit=(i,k,on)=>pads[i][k].style.opacity=on?1:.35;
+  Z.forEach((z,i)=>{set(i,'…');const o=document.createElement('div');o.style.cssText='display:grid;grid-template-columns:repeat(2,50px);gap:8px;margin-top:6px';pads.push([]);
+    COL.forEach((c,k)=>{const b=document.createElement('b');b.style.cssText='width:50px;height:40px;border-radius:12px;opacity:.35;background:'+c;
+      b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(!listening||!alive[i]||dn[i])return;
+        lit(i,k,true);setTimeout(()=>lit(i,k,false),120);
+        if(k===seq[pos[i]]){pos[i]++;if(pos[i]===L){dn[i]=true;set(i,'⭕')}}else{alive[i]=false;sc[i]=L-1;set(i,'❌')}});
+      o.appendChild(b);pads[i].push(b)});z.appendChild(o);cons.push(o)});
+  for(L=3;L<=9&&alive.some(x=>x);L++){
+    listening=false;all('見て!');await sleep(900);
+    for(let k=0;k<L;k++){Z.forEach((z,i)=>lit(i,seq[k],true));await sleep(400);Z.forEach((z,i)=>lit(i,seq[k],false));await sleep(200)}
+    pos.fill(0);dn.fill(false);Z.forEach((z,i)=>{if(alive[i])set(i,'どうぞ!')});listening=true;
+    await until(()=>[0,1,2,3].every(i=>!alive[i]||dn[i]),L*1200+2500);listening=false;
+    [0,1,2,3].forEach(i=>{if(alive[i]&&!dn[i]){alive[i]=false;sc[i]=L-1;set(i,'⏰')}else if(alive[i])sc[i]=L});
+    await sleep(600);
+  }
+  cons.forEach(o=>o.remove());
+  Z.forEach((z,i)=>set(i,sc[i]+'個連続'));await sleep(1500);await award(sc.map(x=>-x));
+}
+async function catchS(){
+  await cd('⭐流れ星キャッチ','落ちてくる⭐をタップで+1\n💩はタップ禁止!-3・12秒');
+  const c=[0,0,0,0];let live=true;
+  const spawn=i=>{const z=Z[i],star=Math.random()<.62,e=document.createElement('div');e.className='t';e.textContent=star?'⭐':'💩';
+    e.style.top='0';e.style.left=(6+Math.random()*68)+'%';z.appendChild(e);
+    const a=e.animate([{transform:'translateY(-30px)'},{transform:'translateY('+z.clientHeight+'px)'}],{duration:1100+Math.random()*700});
+    a.onfinish=()=>e.remove();
+    e.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();if(!live)return;c[i]+=star?1:-3;set(i,c[i]);e.remove()})};
+  all(0);const s=performance.now();
+  while(performance.now()-s<12000){Z.forEach((z,i)=>spawn(i));await sleep(320)}
+  live=false;await sleep(1800);Z.forEach(z=>z.querySelectorAll('.t').forEach(e=>e.remove()));
+  Z.forEach((z,i)=>set(i,c[i]+'点'));await sleep(1200);await award(c.map(x=>-x));
+}
+async function count(){
+  await cd('👀パッと数える','一瞬だけ出る🍎の数を数えよう!\n3択で答える・3問\n全員同じ数');
+  const corr=[0,0,0,0],tm=[0,0,0,0];
+  for(let q=1;q<=3;q++){
+    all('第'+q+'問\nよく見て!');await sleep(1200);
+    const n=9+RR(6),ts=[];all('　');
+    Z.forEach(z=>{for(let k=0;k<n;k++){const e=document.createElement('div');e.className='t';e.textContent='🍎';e.style.cssText='font-size:24px;padding:2px;left:'+(6+Math.random()*66)+'%;top:'+(14+Math.random()*56)+'%';z.appendChild(e);ts.push(e)}});
+    await sleep(1500);ts.forEach(e=>e.remove());all('いくつ?');
+    const os=[],lk=[false,false,false,false];let closed=false;const t0=performance.now();
+    Z.forEach((z,i)=>{const o=document.createElement('div');o.className='o';
+      shuf([n,...shuf([n-2,n-1,n+1,n+2]).slice(0,2)]).forEach(v=>{const b=document.createElement('b');b.textContent=v;b.style.padding='10px 12px';
+        b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(closed||lk[i])return;lk[i]=true;
+          tm[i]+=(performance.now()-t0)/1000;if(v===n){corr[i]++;set(i,'⭕')}else set(i,'❌')});o.appendChild(b)});
+      z.appendChild(o);os.push(o)});
+    await until(()=>lk.every(x=>x),4000);closed=true;
+    lk.forEach((l,i)=>{if(!l){tm[i]+=4;set(i,'時間切れ')}});
+    os.forEach(o=>o.remove());await sleep(500);all('答え '+n);await sleep(1000);
+  }
+  Z.forEach((z,i)=>set(i,corr[i]+'/3問正解'));await sleep(1500);
+  await award(corr.map((c,i)=>-c*100+tm[i]));
+}
+async function jump(){
+  await cd('🌵ジャンプ','🌵が来たらタップでジャンプ!\nぶつかったらアウト\n長く生き残った人が勝ち');
+  const K=16,sch=[];let a=1800;
+  for(let k=0;k<K;k++){const d=Math.max(900,1600-k*45);sch.push({s:a-0.86*d,d});a+=Math.max(900,1100+RR(700)-k*20)}
+  const dead=[null,null,null,null],jend=[0,0,0,0],run=[],obs=[],ws=[];
+  Z.forEach((z,i)=>{set(i,'🏃');const w=document.createElement('div');w.style.cssText='position:relative;width:90%;height:70px;margin-top:6px;border-bottom:3px solid #fff8';
+    const r=document.createElement('div');r.textContent='🏃';r.style.cssText='position:absolute;left:10%;bottom:0;font-size:30px;line-height:1.1';w.appendChild(r);run.push(r);
+    obs.push(sch.map(()=>{const o=document.createElement('div');o.textContent='🌵';o.style.cssText='position:absolute;bottom:0;font-size:28px;line-height:1.1;display:none';w.appendChild(o);return o}));
+    z.appendChild(w);ws.push(w)});
+  hand=i=>{const n=performance.now()-s0;if(dead[i]===null&&n>=jend[i])jend[i]=n+600};
+  const s0=performance.now();
+  while(true){
+    const n=performance.now()-s0;
+    if(n>a+800||dead.every(x=>x!==null))break;
+    Z.forEach((z,i)=>{const air=n<jend[i];run[i].style.bottom=air?'34px':'0';
+      sch.forEach((o,k)=>{const x=100-100*(n-o.s)/o.d,el=obs[i][k];
+        if(x<-10||x>105){el.style.display='none';return}
+        el.style.display='block';el.style.left=x+'%';
+        if(dead[i]===null&&!air&&x>8&&x<20){dead[i]=n;set(i,'💥 '+(n/1000).toFixed(1)+'秒')}})});
+    await sleep(30);
+  }
+  hand=null;
+  Z.forEach((z,i)=>{if(dead[i]===null)set(i,'🏆 完走!')});
+  await sleep(1500);ws.forEach(w=>w.remove());
+  await award(dead.map(x=>x===null?-1e9:-x));
+}
+async function hockey(){
+  await cd('🏒エアホッケー','赤青チーム vs 黄緑チーム\n3点先取で勝ち（60秒）\n勝ったチームの2人に+3点');
+  const WIN=3,LIM=60000,COL=['#e5484d','#3b82f6','#22a559','#d9a400'],TN=['赤青','黄緑'];
+  const wrap=document.createElement('div');wrap.style.cssText='position:fixed;inset:0;z-index:8;box-sizing:border-box;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);background:#0b1220;touch-action:none';
+  const cv=document.createElement('canvas');cv.style.cssText='width:100%;height:100%;display:block;touch-action:none';wrap.appendChild(cv);document.body.appendChild(wrap);window.__cv=cv;
+  const g=cv.getContext('2d');
+  let W,H,R,RP,GX0,GX1,PM,VM,sc=[0,0],state='play',timer=0,left=LIM,last=performance.now(),win=-1,raf=0,done=null;
+  const pads=[0,1,2,3].map(()=>({x:0,y:0,tx:0,ty:0,vx:0,vy:0,id:null})),puck={x:0,y:0,vx:0,vy:0};
+  const serve=c=>{puck.x=W/2;puck.y=c===0?H*.3:H*.7;puck.vx=puck.vy=0};
+  const fit=()=>{const d=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*d;cv.height=H*d;g.setTransform(d,0,0,d,0,0);
+    R=W*.05;RP=W*.085;GX0=W*.26;GX1=W*.74;PM=H*4;VM=H*2;
+    pads.forEach((p,i)=>{p.x=p.tx=W*(i%2?.75:.25);p.y=p.ty=i<2?H*.14:H*.86;p.vx=p.vy=0});serve(sc[0]>sc[1]?0:1)};
+  const clampPad=(i,x,y)=>{const l=i%2?W/2:0,r=i%2?W:W/2,t=i<2?0:H/2,b=i<2?H/2:H;return[Math.min(r-RP,Math.max(l+RP,x)),Math.min(b-RP,Math.max(t+RP,y))]};
+  const mvp=(i,x,y)=>{[pads[i].tx,pads[i].ty]=clampPad(i,x,y)};
+  cv.addEventListener('pointerdown',e=>{e.preventDefault();const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,i=(y<H/2?0:2)+(x<W/2?0:1);
+    if(pads[i].id!==null)return;pads[i].id=e.pointerId;try{cv.setPointerCapture(e.pointerId)}catch(_){}mvp(i,x,y)});
+  cv.addEventListener('pointermove',e=>{const i=pads.findIndex(p=>p.id===e.pointerId);if(i<0)return;const r=cv.getBoundingClientRect();mvp(i,e.clientX-r.left,e.clientY-r.top)});
+  const relp=e=>{const i=pads.findIndex(p=>p.id===e.pointerId);if(i>=0)pads[i].id=null};
+  cv.addEventListener('pointerup',relp);cv.addEventListener('pointercancel',relp);
+  const fin=w=>{state='over';win=w;timer=1800};
+  const goal=t=>{sc[t]++;serve(1-t);if(sc[t]>=WIN)fin(t);else{state='goal';timer=1000}};
+  const movePads=h=>pads.forEach(p=>{const dx=p.tx-p.x,dy=p.ty-p.y,d=Math.hypot(dx,dy);
+    if(d>.01){const s=Math.min(d,PM*h);p.vx=dx/d*s/h;p.vy=dy/d*s/h;p.x+=dx/d*s;p.y+=dy/d*s}else{p.vx=p.vy=0}});
+  const step=dt=>{
+    if(state==='play'){left-=dt*1000;if(left<=0)fin(sc[0]>sc[1]?0:sc[1]>sc[0]?1:-1)}
+    else if(state==='goal'){timer-=dt*1000;if(timer<=0)state='play'}
+    else if(state==='over'){timer-=dt*1000;if(timer<=0&&done){const f=done;done=null;f()}}
+    for(let s=0;s<4;s++){const h=dt/4;movePads(h);if(state!=='play')continue;
+      puck.x+=puck.vx*h;puck.y+=puck.vy*h;const f=Math.pow(.8,h);puck.vx*=f;puck.vy*=f;
+      if(puck.x<R){puck.x=R;puck.vx=Math.abs(puck.vx)*.95}
+      if(puck.x>W-R){puck.x=W-R;puck.vx=-Math.abs(puck.vx)*.95}
+      const gap=puck.x>GX0&&puck.x<GX1;
+      if(!gap&&puck.y<R){puck.y=R;puck.vy=Math.abs(puck.vy)*.95}
+      if(!gap&&puck.y>H-R){puck.y=H-R;puck.vy=-Math.abs(puck.vy)*.95}
+      if(puck.y<-R){goal(1);continue}
+      if(puck.y>H+R){goal(0);continue}
+      for(const p of pads){const dx=puck.x-p.x,dy=puck.y-p.y,d=Math.hypot(dx,dy),m=R+RP;
+        if(d<m&&d>0){const nx=dx/d,ny=dy/d;puck.x=p.x+nx*m;puck.y=p.y+ny*m;
+          const vn=(puck.vx-p.vx)*nx+(puck.vy-p.vy)*ny;if(vn<0){puck.vx-=1.9*vn*nx;puck.vy-=1.9*vn*ny}}}
+      const sp=Math.hypot(puck.vx,puck.vy);if(sp>VM){puck.vx*=VM/sp;puck.vy*=VM/sp}}
+  };
+  const T=(s,x,y,rot,sz,col)=>{g.save();g.translate(x,y);g.rotate(rot);g.fillStyle=col||'#fff';g.font='800 '+sz+'px -apple-system,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(s,0,0);g.restore()};
+  const both=(s,yt,yb,sz,col)=>{T(s,W/2,yt,Math.PI,sz,col);T(s,W/2,yb,0,sz,col)};
+  const draw=()=>{
+    g.fillStyle='#0f2a43';g.fillRect(0,0,W,H);
+    COL.forEach((c,i)=>{g.globalAlpha=.22;g.fillStyle=c;g.fillRect(i%2?W/2:0,i<2?0:H/2,W/2,H/2)});g.globalAlpha=1;
+    g.strokeStyle='rgba(255,255,255,.5)';g.lineWidth=3;g.beginPath();g.moveTo(0,H/2);g.lineTo(W,H/2);g.moveTo(W/2,0);g.lineTo(W/2,H);g.stroke();
+    g.beginPath();g.arc(W/2,H/2,W*.12,0,7);g.stroke();
+    g.lineWidth=6;g.strokeStyle='#fff';g.beginPath();
+    g.moveTo(0,0);g.lineTo(GX0,0);g.moveTo(GX1,0);g.lineTo(W,0);g.moveTo(0,H);g.lineTo(GX0,H);g.moveTo(GX1,H);g.lineTo(W,H);g.stroke();
+    g.fillStyle='rgba(255,255,255,.18)';g.fillRect(GX0,0,GX1-GX0,8);g.fillRect(GX0,H-8,GX1-GX0,8);
+    T(TN[0]+' '+sc[0],W/2,H/2-26,Math.PI,18,'rgba(255,255,255,.8)');
+    T(TN[1]+' '+sc[1],W/2,H/2+26,0,18,'rgba(255,255,255,.8)');
+    T(Math.max(0,Math.ceil(left/1000))+'s',W*.9,H/2,0,14,'rgba(255,255,255,.6)');
+    pads.forEach((p,i)=>{g.fillStyle=COL[i];g.beginPath();g.arc(p.x,p.y,RP,0,7);g.fill();
+      g.lineWidth=4;g.strokeStyle='#fff';g.stroke();g.fillStyle='rgba(0,0,0,.25)';g.beginPath();g.arc(p.x,p.y,RP*.45,0,7);g.fill()});
+    g.fillStyle='#fff';g.beginPath();g.arc(puck.x,puck.y,R,0,7);g.fill();g.lineWidth=3;g.strokeStyle='#111';g.stroke();
+    if(state==='goal')both('GOAL!',H*.33,H*.67,44);
+    if(state==='over')both(win<0?'ひきわけ':TN[win]+'チーム勝利!',H*.33,H*.67,30,win===1?'#ffd43b':'#8ec5ff');
+  };
+  const w=await new Promise(res=>{
+    done=()=>res(win);fit();
+    const loop=t=>{const dt=Math.min((t-last)/1000,1/30);last=t;step(dt);draw();raf=requestAnimationFrame(loop)};
+    last=performance.now();raf=requestAnimationFrame(loop);
+  });
+  cancelAnimationFrame(raf);wrap.remove();window.__cv=null;
+  Z.forEach((z,i)=>set(i,w<0?'🤝 ひきわけ\n+1点':(w===(i<2?0:1)?'🏆 勝ち!\n+3点':'😢 負け')));
+  total=total.map((x,i)=>x+(w<0?1:(w===(i<2?0:1)?3:0)));upd();await sleep(2500);
+}
+async function play(online){
+  ONLINE=!!online;B.style.display='none';document.getElementById('onlineBtn').style.display='none';total=[0,0,0,0];upd();
+  const pool=[reaction,mash,stop,bomb,fake,sg,roul,calc,gauge,hue,stroop,mem,missile,flash,relay,pairs,simon,catchS,hockey].sort(()=>Math.random()-.5);
+  for(const g of pool){await g()}
+  const mx=Math.max(...total),names=['赤','青','緑','黄'];
+  const md=['🥇','🥈','🥉','4️⃣'];
+  Z.forEach((z,i)=>{const rk=total.filter(x=>x>total[i]).length;set(i,md[rk]+'\n'+(rk+1)+'位'+(rk===0?'\n🏆優勝!':''))});
+  B.textContent='もう一度!';B.style.display='block';
+  if(!ONLINE)document.getElementById('onlineBtn').style.display='block';
+  if(ONLINE&&ROLE==='host'){broadcast(snapMsg());broadcast({t:'phase',p:'ended'});playing=false}
+}
+B.onclick=()=>{if(ONLINE&&ROLE==='host'){startOnlineGame()}else if(!ONLINE){play(false)}};
+
+// ===== オンライン対戦（PeerJS / WebRTC・ホスト主導で画面を同期） =====
+const COLORS=['赤','青','緑','黄'],COLHEX=['#e5484d','#3b82f6','#22a559','#d9a400'];
+const $=id=>document.getElementById(id);
+const lobby=$('lobby'),statusEl=$('status'),grid=$('g');
+let ROLE=null,ONLINE=false,myIdx=0,peer=null,hostConn=null,guests=[],playing=false,lastPlayers=[true,false,false,false];
+const CODECH='ABCDEFGHJKMNPQRSTUVWXYZ23456789',PREFIX='4renbatoru-';
+const mkCode=()=>Array.from({length:6},()=>CODECH[Math.floor(Math.random()*CODECH.length)]).join('');
+function setStatus(t){statusEl.textContent=t;statusEl.style.display=t?'block':'none'}
+function showLobby(v){lobby.classList.toggle('open',v)}
+function broadcast(o){guests.forEach(g=>{if(g.conn.open)g.conn.send(o)})}
+function cleanupPeer(){guests.forEach(g=>{try{g.conn.close()}catch(e){}});guests=[];if(hostConn){try{hostConn.close()}catch(e){}}hostConn=null;if(peer){try{peer.destroy()}catch(e){}}peer=null}
+function playersArr(){const p=[true,false,false,false];guests.forEach(g=>p[g.idx]=true);return p}
+function renderPlist(){const p=ROLE==='host'?playersArr():lastPlayers;$('plist').innerHTML=p.map((on,i)=>'<span class="'+(on?'on':'')+'"'+(on?' style="background:'+COLHEX[i]+'"':'')+'>'+COLORS[i]+(i===myIdx?'（あなた）':'')+'</span>').join('')}
+function lobbySync(){broadcast({t:'lobby',players:playersArr()});renderPlist();$('lobbyMsg').textContent=guests.length?(guests.length+1)+'人が集まっています。スタートできます!':'参加を待っています…'}
+function zoneKids(z){return[...z.children].filter(el=>!el.classList.contains('m')&&!el.classList.contains('s'))}
+function findByPath(zi,path){let els=zoneKids(Z[zi]),el=null;for(const k of path){el=els[k];if(!el)return null;els=[...el.children]}return el}
+function serNode(el){const kids=[...el.children],o={tag:el.tagName,cls:el.className,style:el.getAttribute('style')||''};if(el.dataset&&el.dataset.d)o.d=1;if(kids.length)o.kids=kids.map(serNode);else o.txt=el.textContent;return o}
+function snapMsg(){return{t:'snap',d:Z.map(z=>{const m=z.querySelector('.m');return{mt:m.textContent,ms:m.getAttribute('style')||'',mc:m.className,s:z.querySelector('.s').textContent,go:z.classList.contains('go'),kids:zoneKids(z).map(serNode)}})}}
+let snapTimer=null;
+function queueSnap(){if(ROLE!=='host'||!playing||snapTimer)return;snapTimer=setTimeout(()=>{snapTimer=null;broadcast(snapMsg())},40)}
+new MutationObserver(queueSnap).observe(grid,{subtree:true,childList:true,attributes:true,characterData:true});
+const offCv=document.createElement('canvas');let frameSent=false;
+setInterval(()=>{if(ROLE!=='host'||!playing)return;const cv=window.__cv;
+  if(cv){try{const w=480,h=Math.max(2,Math.round(480*cv.clientHeight/Math.max(1,cv.clientWidth)));offCv.width=w;offCv.height=h;offCv.getContext('2d').drawImage(cv,0,0,w,h);broadcast({t:'frame',img:offCv.toDataURL('image/jpeg',.55)});frameSent=true}catch(e){}}
+  else if(frameSent){frameSent=false;broadcast({t:'frame',img:''})}},180);
+function cvInput(idx,d){const cv=window.__cv;if(!cv)return;const r=cv.getBoundingClientRect(),type=d.phase==='down'?'pointerdown':d.phase==='move'?'pointermove':'pointerup';cv.dispatchEvent(new PointerEvent(type,{pointerId:100+idx,clientX:r.left+d.x*r.width,clientY:r.top+d.y*r.height,bubbles:true}))}
+function onGuestData(g,d){if(!d)return;const ev={clientX:d.x||0,clientY:d.y||0,preventDefault(){}};
+  if(d.t==='down'){if(hand)hand(g.idx,ev)}
+  else if(d.t==='up'){if(up)up(g.idx,ev)}
+  else if(d.t==='el'){const el=findByPath(g.idx,d.path);if(el)el.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}))}
+  else if(d.t==='cv'){cvInput(g.idx,d)}}
+function startOnlineGame(){showLobby(false);$('onlineBtn').style.display='none';setStatus('あなたは '+COLORS[myIdx]+' ／ オンライン対戦中');playing=true;broadcast({t:'phase',p:'playing'});broadcast(snapMsg());play(true)}
+$('onlineBtn').onclick=()=>{showLobby(true);if(typeof Peer==='undefined')$('mainMsg').textContent='通信ライブラリを読み込めませんでした。電波の良い場所でページを開き直してください。'};
+$('lobbyBack').onclick=()=>showLobby(false);
+$('mkRoom').onclick=()=>{
+  if(typeof Peer==='undefined'){$('mainMsg').textContent='通信ライブラリを読み込めませんでした。電波の良い場所でページを開き直してください。';return}
+  cleanupPeer();ROLE='host';ONLINE=true;myIdx=0;grid.classList.add('online');
+  const code=mkCode();
+  peer=new Peer(PREFIX+code);
+  peer.on('open',()=>{$('roomCode').textContent=code;$('lobbyMain').style.display='none';$('lobbyRoom').style.display='block';$('roomStart').style.display='';lastPlayers=playersArr();renderPlist();$('lobbyMsg').textContent='参加を待っています…'});
+  peer.on('connection',conn=>{conn.on('open',()=>{
+    const free=[1,2,3].find(i=>!guests.some(g=>g.idx===i));
+    if(free===undefined){try{conn.send({t:'full'})}catch(e){}setTimeout(()=>{try{conn.close()}catch(e){}},400);return}
+    const g={conn,idx:free};guests.push(g);conn.send({t:'welcome',idx:free});
+    conn.on('data',d=>onGuestData(g,d));
+    conn.on('close',()=>{guests=guests.filter(x=>x!==g);if(!playing)lobbySync()});
+    lobbySync()})});
+  peer.on('error',e=>{$('mainMsg').textContent='エラーが発生しました（'+e.type+'）。開き直して試してください。';showLobby(true);$('lobbyRoom').style.display='none';$('lobbyMain').style.display='block'})};
+$('roomStart').onclick=startOnlineGame;
+function guestLeft(){playing=false;$('hv').style.display='none';setStatus('ホストとの接続が切れました');showLobby(true);$('lobbyMain').style.display='none';$('lobbyRoom').style.display='block';$('roomStart').style.display='none';$('lobbyMsg').textContent='ホストとの接続が切れました。退出して入り直してください。'}
+function buildNode(o,path){const el=document.createElement(o.tag.toLowerCase());el.className=o.cls;if(o.style)el.setAttribute('style',o.style);el.dataset.path=path.join(',');if(o.d)el.dataset.d=1;if(o.kids)o.kids.forEach((k,i)=>el.appendChild(buildNode(k,path.concat(i))));else el.textContent=o.txt||'';return el}
+function renderSnap(d){if(ROLE!=='guest')return;d.forEach((zd,i)=>{const z=Z[i],m=z.querySelector('.m');m.textContent=zd.mt;m.className=zd.mc;if(zd.ms)m.setAttribute('style',zd.ms);else m.removeAttribute('style');z.querySelector('.s').textContent=zd.s;z.classList.toggle('go',zd.go);zoneKids(z).forEach(el=>el.remove());zd.kids.forEach((k,ki)=>z.appendChild(buildNode(k,[ki])))})}
+function onHostData(d){if(!d)return;
+  if(d.t==='welcome'){myIdx=d.idx;$('lobbyMain').style.display='none';$('lobbyRoom').style.display='block';$('roomCode').textContent=$('codeIn').value.trim().toUpperCase();$('roomStart').style.display='none';$('lobbyMsg').textContent='あなたは '+COLORS[myIdx]+'。ホストがスタートするのを待っています…';B.style.display='none';$('onlineBtn').style.display='none';grid.classList.add('online');setStatus('あなたは '+COLORS[myIdx])}
+  else if(d.t==='full'){$('mainMsg').textContent='そのルームは満員です。'}
+  else if(d.t==='lobby'){lastPlayers=d.players;renderPlist()}
+  else if(d.t==='phase'){if(d.p==='playing'){playing=true;showLobby(false);setStatus('あなたは '+COLORS[myIdx]+' ／ オンライン対戦中')}else if(d.p==='ended'){playing=false;$('hv').style.display='none';setStatus('対戦終了!ホストがもう一度始めるのを待っています')}}
+  else if(d.t==='snap'){renderSnap(d.d)}
+  else if(d.t==='frame'){if(d.img){$('hvImg').src=d.img;$('hv').style.display='block'}else $('hv').style.display='none'}}
+$('joinRoom').onclick=()=>{
+  const code=$('codeIn').value.trim().toUpperCase();
+  if(code.length!==6){$('mainMsg').textContent='6文字のコードを入力してください。';return}
+  if(typeof Peer==='undefined'){$('mainMsg').textContent='通信ライブラリを読み込めませんでした。電波の良い場所でページを開き直してください。';return}
+  cleanupPeer();ROLE='guest';ONLINE=true;$('mainMsg').textContent='接続中…';
+  peer=new Peer();
+  peer.on('open',()=>{hostConn=peer.connect(PREFIX+code,{reliable:true});
+    hostConn.on('open',()=>{$('mainMsg').textContent='接続しました。ホストの応答を待っています…'});
+    hostConn.on('data',onHostData);
+    hostConn.on('close',()=>{if(ROLE==='guest')guestLeft()})});
+  peer.on('error',e=>{$('mainMsg').textContent=e.type==='peer-unavailable'?'ルームが見つかりません。コードを確認してください。':'接続エラー（'+e.type+'）'})};
+$('roomLeave').onclick=()=>{cleanupPeer();ROLE=null;ONLINE=false;playing=false;lastPlayers=[true,false,false,false];grid.classList.remove('online');$('lobbyRoom').style.display='none';$('lobbyMain').style.display='block';$('mainMsg').textContent='';showLobby(false);B.style.display='block';$('onlineBtn').style.display='block';setStatus('');$('hv').style.display='none'};
+Z.forEach((z,i)=>{
+  z.addEventListener('pointerdown',e=>{if(ROLE!=='guest'||!hostConn||!hostConn.open||i!==myIdx)return;const t=e.target.closest?e.target.closest('[data-path]'):null;if(t)hostConn.send({t:'el',path:t.dataset.path.split(',').map(Number)});else hostConn.send({t:'down',x:e.clientX,y:e.clientY})});
+  z.addEventListener('pointerup',e=>{if(ROLE!=='guest'||!hostConn||!hostConn.open||i!==myIdx)return;hostConn.send({t:'up',x:e.clientX,y:e.clientY})});
+  z.addEventListener('pointercancel',e=>{if(ROLE!=='guest'||!hostConn||!hostConn.open||i!==myIdx)return;hostConn.send({t:'up',x:e.clientX,y:e.clientY})})});
+['pointerdown','pointermove','pointerup','pointercancel'].forEach(ty=>{$('hv').addEventListener(ty,e=>{if(ROLE!=='guest'||!hostConn||!hostConn.open)return;e.preventDefault();const r=$('hv').getBoundingClientRect();hostConn.send({t:'cv',phase:ty==='pointerdown'?'down':ty==='pointermove'?'move':'up',x:(e.clientX-r.left)/Math.max(1,r.width),y:(e.clientY-r.top)/Math.max(1,r.height)})})});
+</script></body></html>
