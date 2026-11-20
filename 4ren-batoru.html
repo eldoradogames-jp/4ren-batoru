@@ -672,6 +672,13 @@ const lobby=$('lobby'),statusEl=$('status'),grid=$('g');
 let ROLE=null,ONLINE=false,myIdx=0,peer=null,hostConn=null,guests=[],playing=false,lastPlayers=[true,false,false,false];
 const CODECH='ABCDEFGHJKMNPQRSTUVWXYZ23456789',PREFIX='4renbatoru-';
 const mkCode=()=>Array.from({length:6},()=>CODECH[Math.floor(Math.random()*CODECH.length)]).join('');
+const SSKEY='4ren-room';
+function saveSess(o){try{localStorage.setItem(SSKEY,JSON.stringify(o))}catch(e){}}
+function loadSess(){try{const o=JSON.parse(localStorage.getItem(SSKEY)||'null');if(o&&Date.now()-o.ts<30*60*1000)return o}catch(e){}return null}
+function clearSess(){try{localStorage.removeItem(SSKEY)}catch(e){}}
+let wakeLock=null;
+async function keepAwake(){try{if('wakeLock' in navigator)wakeLock=await navigator.wakeLock.request('screen')}catch(e){}}
+let guestCode=null,leaving=false,rejoining=false,rejoinCount=0,rejoinTimer=null,lastPing=Date.now();
 function setStatus(t){statusEl.textContent=t;statusEl.style.display=t?'block':'none'}
 function showLobby(v){lobby.classList.toggle('open',v)}
 function broadcast(o){guests.forEach(g=>{if(g.conn.open)g.conn.send(o)})}
@@ -699,46 +706,83 @@ function onGuestData(g,d){if(!d)return;const ev={clientX:d.x||0,clientY:d.y||0,p
 function startOnlineGame(){showLobby(false);$('onlineBtn').style.display='none';setStatus('あなたは '+COLORS[myIdx]+' ／ オンライン対戦中');playing=true;broadcast({t:'phase',p:'playing'});broadcast(snapMsg());play(true)}
 $('onlineBtn').onclick=()=>{showLobby(true);if(typeof Peer==='undefined')$('mainMsg').textContent='通信ライブラリを読み込めませんでした。電波の良い場所でページを開き直してください。'};
 $('lobbyBack').onclick=()=>showLobby(false);
-$('mkRoom').onclick=()=>{
-  if(typeof Peer==='undefined'){$('mainMsg').textContent='通信ライブラリを読み込めませんでした。電波の良い場所でページを開き直してください。';return}
-  cleanupPeer();ROLE='host';ONLINE=true;myIdx=0;grid.classList.add('online');
-  const code=mkCode();
+let hostCode=null,restoreTries=0;
+function createRoom(code,isRestore){
+  cleanupPeer();ROLE='host';ONLINE=true;myIdx=0;grid.classList.add('online');hostCode=code;
   peer=new Peer(PREFIX+code);
-  peer.on('open',()=>{$('roomCode').textContent=code;$('lobbyMain').style.display='none';$('lobbyRoom').style.display='block';$('roomStart').style.display='';lastPlayers=playersArr();renderPlist();$('lobbyMsg').textContent='参加を待っています…'});
+  peer.on('open',()=>{restoreTries=0;$('roomCode').textContent=code;$('lobbyMain').style.display='none';$('lobbyRoom').style.display='block';$('roomStart').style.display='';lastPlayers=playersArr();renderPlist();$('lobbyMsg').textContent='参加を待っています…';if(guests.length&&!playing)lobbySync();saveSess({role:'host',code:code,ts:Date.now()});keepAwake()});
   peer.on('connection',conn=>{conn.on('open',()=>{
     const free=[1,2,3].find(i=>!guests.some(g=>g.idx===i));
     if(free===undefined){try{conn.send({t:'full'})}catch(e){}setTimeout(()=>{try{conn.close()}catch(e){}},400);return}
-    const g={conn,idx:free};guests.push(g);conn.send({t:'welcome',idx:free});
-    conn.on('data',d=>onGuestData(g,d));
+    const g={conn,idx:free,lastPong:Date.now()};guests.push(g);conn.send({t:'welcome',idx:free});
+    conn.on('data',d=>{if(d&&d.t==='pong'){g.lastPong=Date.now();return}onGuestData(g,d)});
     conn.on('close',()=>{guests=guests.filter(x=>x!==g);if(!playing)lobbySync()});
-    lobbySync()})});
-  peer.on('error',e=>{$('mainMsg').textContent='エラーが発生しました（'+e.type+'）。開き直して試してください。';showLobby(true);$('lobbyRoom').style.display='none';$('lobbyMain').style.display='block'})};
+    lobbySync();if(playing){try{conn.send({t:'phase',p:'playing'})}catch(e){}setTimeout(()=>{try{conn.send(snapMsg())}catch(e){}},300)}})});
+  peer.on('disconnected',()=>{if(ROLE!=='host')return;$('lobbyMsg').textContent='接続が切れました。再接続中…';try{peer.reconnect()}catch(e){}});
+  peer.on('error',e=>{
+    if(e.type==='unavailable-id'&&isRestore&&restoreTries<5){restoreTries++;$('lobbyMsg').textContent='ルームを復旧中…';setTimeout(()=>{if(ROLE==='host')createRoom(code,true)},3000);return}
+    $('mainMsg').textContent='エラーが発生しました（'+e.type+'）。開き直して試してください。';showLobby(true);$('lobbyRoom').style.display='none';$('lobbyMain').style.display='block'})}
+$('mkRoom').onclick=()=>{
+  if(typeof Peer==='undefined'){$('mainMsg').textContent='通信ライブラリを読み込めませんでした。電波の良い場所でページを開き直してください。';return}
+  createRoom(mkCode(),false)};
 $('roomStart').onclick=startOnlineGame;
-function guestLeft(){playing=false;$('hv').style.display='none';setStatus('ホストとの接続が切れました');showLobby(true);$('lobbyMain').style.display='none';$('lobbyRoom').style.display='block';$('roomStart').style.display='none';$('lobbyMsg').textContent='ホストとの接続が切れました。退出して入り直してください。'}
+function guestLeft(){clearSess();playing=false;$('hv').style.display='none';setStatus('ホストとの接続が切れました');showLobby(true);$('lobbyMain').style.display='none';$('lobbyRoom').style.display='block';$('roomStart').style.display='none';$('lobbyMsg').textContent='ホストとの接続が切れました。退出して入り直してください。'}
 function buildNode(o,path){const el=document.createElement(o.tag.toLowerCase());el.className=o.cls;if(o.style)el.setAttribute('style',o.style);el.dataset.path=path.join(',');if(o.d)el.dataset.d=1;if(o.kids)o.kids.forEach((k,i)=>el.appendChild(buildNode(k,path.concat(i))));else el.textContent=o.txt||'';return el}
 function renderSnap(d){if(ROLE!=='guest')return;d.forEach((zd,i)=>{const z=Z[i],m=z.querySelector('.m');m.textContent=zd.mt;m.className=zd.mc;if(zd.ms)m.setAttribute('style',zd.ms);else m.removeAttribute('style');z.querySelector('.s').textContent=zd.s;z.classList.toggle('go',zd.go);zoneKids(z).forEach(el=>el.remove());zd.kids.forEach((k,ki)=>z.appendChild(buildNode(k,[ki])))})}
 function onHostData(d){if(!d)return;
-  if(d.t==='welcome'){myIdx=d.idx;$('lobbyMain').style.display='none';$('lobbyRoom').style.display='block';$('roomCode').textContent=$('codeIn').value.trim().toUpperCase();$('roomStart').style.display='none';$('lobbyMsg').textContent='あなたは '+COLORS[myIdx]+'。ホストがスタートするのを待っています…';B.style.display='none';$('onlineBtn').style.display='none';grid.classList.add('online');setStatus('あなたは '+COLORS[myIdx])}
+  if(d.t==='ping'){lastPing=Date.now();if(hostConn&&hostConn.open){try{hostConn.send({t:'pong'})}catch(e){}}return}
+  if(d.t==='welcome'){myIdx=d.idx;rejoining=false;rejoinCount=0;if(rejoinTimer){clearTimeout(rejoinTimer);rejoinTimer=null}saveSess({role:'guest',code:guestCode,ts:Date.now()});$('lobbyMain').style.display='none';$('lobbyRoom').style.display='block';$('roomCode').textContent=$('codeIn').value.trim().toUpperCase();$('roomStart').style.display='none';$('lobbyMsg').textContent='あなたは '+COLORS[myIdx]+'。ホストがスタートするのを待っています…';B.style.display='none';$('onlineBtn').style.display='none';grid.classList.add('online');setStatus('あなたは '+COLORS[myIdx])}
   else if(d.t==='full'){$('mainMsg').textContent='そのルームは満員です。'}
   else if(d.t==='lobby'){lastPlayers=d.players;renderPlist()}
   else if(d.t==='phase'){if(d.p==='playing'){playing=true;showLobby(false);setStatus('あなたは '+COLORS[myIdx]+' ／ オンライン対戦中')}else if(d.p==='ended'){playing=false;$('hv').style.display='none';setStatus('対戦終了!ホストがもう一度始めるのを待っています')}}
   else if(d.t==='snap'){renderSnap(d.d)}
   else if(d.t==='frame'){if(d.img){$('hvImg').src=d.img;$('hv').style.display='block'}else $('hv').style.display='none'}}
+function scheduleRejoin(){
+  if(leaving||ROLE!=='guest'||rejoinTimer)return;
+  showLobby(true);$('lobbyMain').style.display='none';$('lobbyRoom').style.display='block';$('roomStart').style.display='none';
+  if(rejoinCount>=12){rejoining=false;guestLeft();return}
+  rejoining=true;rejoinCount++;
+  $('lobbyMsg').textContent='ホストに再接続中…（'+rejoinCount+'回目）';
+  rejoinTimer=setTimeout(()=>{rejoinTimer=null;if(ROLE==='guest'&&!leaving)connectGuest(guestCode)},4000)}
+function connectGuest(code){
+  cleanupPeer();ROLE='guest';ONLINE=true;guestCode=code;grid.classList.add('online');
+  peer=new Peer();
+  peer.on('open',()=>{hostConn=peer.connect(PREFIX+code,{reliable:true});
+    hostConn.on('open',()=>{$('mainMsg').textContent='接続しました。ホストの応答を待っています…';lastPing=Date.now()});
+    hostConn.on('data',onHostData);
+    hostConn.on('close',()=>{if(ROLE==='guest'&&!leaving)scheduleRejoin()})});
+  peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
+  peer.on('error',e=>{
+    if(e.type==='peer-unavailable'){if(rejoining){scheduleRejoin()}else{$('mainMsg').textContent='ルームが見つかりません。コードを確認してください。'}}
+    else if(!rejoining){$('mainMsg').textContent='接続エラー（'+e.type+'）'}})}
 $('joinRoom').onclick=()=>{
   const code=$('codeIn').value.trim().toUpperCase();
   if(code.length!==6){$('mainMsg').textContent='6文字のコードを入力してください。';return}
   if(typeof Peer==='undefined'){$('mainMsg').textContent='通信ライブラリを読み込めませんでした。電波の良い場所でページを開き直してください。';return}
-  cleanupPeer();ROLE='guest';ONLINE=true;$('mainMsg').textContent='接続中…';
-  peer=new Peer();
-  peer.on('open',()=>{hostConn=peer.connect(PREFIX+code,{reliable:true});
-    hostConn.on('open',()=>{$('mainMsg').textContent='接続しました。ホストの応答を待っています…'});
-    hostConn.on('data',onHostData);
-    hostConn.on('close',()=>{if(ROLE==='guest')guestLeft()})});
-  peer.on('error',e=>{$('mainMsg').textContent=e.type==='peer-unavailable'?'ルームが見つかりません。コードを確認してください。':'接続エラー（'+e.type+'）'})};
-$('roomLeave').onclick=()=>{cleanupPeer();ROLE=null;ONLINE=false;playing=false;lastPlayers=[true,false,false,false];grid.classList.remove('online');$('lobbyRoom').style.display='none';$('lobbyMain').style.display='block';$('mainMsg').textContent='';showLobby(false);B.style.display='block';$('onlineBtn').style.display='block';setStatus('');$('hv').style.display='none'};
+  leaving=false;rejoining=false;rejoinCount=0;$('mainMsg').textContent='接続中…';connectGuest(code)};
+$('roomLeave').onclick=()=>{leaving=true;clearSess();if(rejoinTimer){clearTimeout(rejoinTimer);rejoinTimer=null}cleanupPeer();ROLE=null;ONLINE=false;playing=false;lastPlayers=[true,false,false,false];grid.classList.remove('online');$('lobbyRoom').style.display='none';$('lobbyMain').style.display='block';$('mainMsg').textContent='';showLobby(false);B.style.display='block';$('onlineBtn').style.display='block';setStatus('');$('hv').style.display='none'};
 Z.forEach((z,i)=>{
   z.addEventListener('pointerdown',e=>{if(ROLE!=='guest'||!hostConn||!hostConn.open||i!==myIdx)return;const t=e.target.closest?e.target.closest('[data-path]'):null;if(t)hostConn.send({t:'el',path:t.dataset.path.split(',').map(Number)});else hostConn.send({t:'down',x:e.clientX,y:e.clientY})});
   z.addEventListener('pointerup',e=>{if(ROLE!=='guest'||!hostConn||!hostConn.open||i!==myIdx)return;hostConn.send({t:'up',x:e.clientX,y:e.clientY})});
   z.addEventListener('pointercancel',e=>{if(ROLE!=='guest'||!hostConn||!hostConn.open||i!==myIdx)return;hostConn.send({t:'up',x:e.clientX,y:e.clientY})})});
 ['pointerdown','pointermove','pointerup','pointercancel'].forEach(ty=>{$('hv').addEventListener(ty,e=>{if(ROLE!=='guest'||!hostConn||!hostConn.open)return;e.preventDefault();const r=$('hv').getBoundingClientRect();hostConn.send({t:'cv',phase:ty==='pointerdown'?'down':ty==='pointermove'?'move':'up',x:(e.clientX-r.left)/Math.max(1,r.width),y:(e.clientY-r.top)/Math.max(1,r.height)})})});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible')return;
+  if(peer&&peer.disconnected&&!peer.destroyed){try{peer.reconnect()}catch(e){}}
+  if(ROLE==='host'){keepAwake();if(playing)broadcast(snapMsg())}
+});
+setInterval(()=>{ // host heartbeat: ping guests, drop silent ones so their slot frees up for rejoin
+  if(ROLE!=='host'||!peer)return;broadcast({t:'ping'});
+  const now=Date.now();let changed=false;
+  guests.slice().forEach(g=>{if(now-(g.lastPong||0)>30000){try{g.conn.close()}catch(e){}guests=guests.filter(x=>x!==g);changed=true}});
+  if(changed&&!playing)lobbySync();
+},5000);
+setInterval(()=>{ // guest watchdog: host silent too long -> rejoin
+  if(ROLE==='guest'&&hostConn&&hostConn.open&&!rejoinTimer&&Date.now()-lastPing>45000){try{hostConn.close()}catch(e){scheduleRejoin()}}
+},5000);
+(function(){ // restore room after an accidental page reload (same code, within 30 min)
+  const s=loadSess();if(!s||typeof Peer==='undefined')return;
+  if(s.role==='host'){showLobby(true);createRoom(s.code,true)}
+  else if(s.role==='guest'){showLobby(true);leaving=false;rejoining=true;rejoinCount=0;$('codeIn').value=s.code;$('lobbyMsg').textContent='ルームに再接続中…';connectGuest(s.code)}
+})();
 </script></body></html>
