@@ -523,29 +523,6 @@ async function quiz(){
   }
   Z.forEach((z,i)=>set(i,c[i]+'点'));await sleep(1200);await award(c.map(x=>-x));
 }
-async function simon(){
-  await cd('🧠サイモン','光る順番を覚えて同じ順にタップ!\nだんだん長くなる\n長く続けた人が勝ち');
-  const COL=['#ff6b6b','#4dabf7','#51cf66','#ffd43b'],alive=[true,true,true,true],sc=[0,0,0,0],pads=[],cons=[];
-  const seq=[0,0,0,0,0,0,0,0,0].map(()=>RR(4)-1);
-  let L=0,listening=false;const pos=[0,0,0,0],dn=[false,false,false,false];
-  const lit=(i,k,on)=>pads[i][k].style.opacity=on?1:.35;
-  Z.forEach((z,i)=>{set(i,'…');const o=document.createElement('div');o.style.cssText='display:grid;grid-template-columns:repeat(2,50px);gap:8px;margin-top:6px';pads.push([]);
-    COL.forEach((c,k)=>{const b=document.createElement('b');b.style.cssText='width:50px;height:40px;border-radius:12px;opacity:.35;background:'+c;
-      b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(!listening||!alive[i]||dn[i])return;
-        lit(i,k,true);setTimeout(()=>lit(i,k,false),120);
-        if(k===seq[pos[i]]){pos[i]++;if(pos[i]===L){dn[i]=true;set(i,'⭕')}}else{alive[i]=false;sc[i]=L-1;set(i,'❌')}});
-      o.appendChild(b);pads[i].push(b)});z.appendChild(o);cons.push(o)});
-  for(L=3;L<=9&&alive.some(x=>x);L++){
-    listening=false;all('見て!');await sleep(900);
-    for(let k=0;k<L;k++){Z.forEach((z,i)=>lit(i,seq[k],true));await sleep(400);Z.forEach((z,i)=>lit(i,seq[k],false));await sleep(200)}
-    pos.fill(0);dn.fill(false);Z.forEach((z,i)=>{if(alive[i])set(i,'どうぞ!')});listening=true;
-    await until(()=>[0,1,2,3].every(i=>!alive[i]||dn[i]),L*1200+2500);listening=false;
-    [0,1,2,3].forEach(i=>{if(alive[i]&&!dn[i]){alive[i]=false;sc[i]=L-1;set(i,'⏰')}else if(alive[i])sc[i]=L});
-    await sleep(600);
-  }
-  cons.forEach(o=>o.remove());
-  Z.forEach((z,i)=>set(i,sc[i]+'個連続'));await sleep(1500);await award(sc.map(x=>-x));
-}
 async function catchS(){
   await cd('⭐流れ星キャッチ','落ちてくる⭐をタップで+1\n💩はタップ禁止!-3・12秒');
   const c=[0,0,0,0];let live=true;
@@ -677,7 +654,7 @@ async function hockey(){
 }
 async function play(online){
   ONLINE=!!online;B.style.display='none';document.getElementById('onlineBtn').style.display='none';total=[0,0,0,0];upd();
-  const pool=[reaction,mash,stop,bomb,fake,sg,roul,calc,gauge,hue,stroop,mem,missile,flash,relay,pairs,simon,catchS,hockey].sort(()=>Math.random()-.5);
+  const pool=[reaction,mash,stop,bomb,fake,sg,roul,calc,gauge,hue,stroop,mem,missile,flash,relay,pairs,catchS,hockey].sort(()=>Math.random()-.5);
   for(const g of pool){await g()}
   const mx=Math.max(...total),names=['赤','青','緑','黄'];
   const md=['🥇','🥈','🥉','4️⃣'];
