@@ -526,7 +526,7 @@ async function quiz(){
 async function catchS(){
   await cd('⭐流れ星キャッチ','落ちてくる⭐をタップで+1\n💩はタップ禁止!-3・12秒');
   const c=[0,0,0,0];let live=true;
-  const spawn=i=>{const z=Z[i],star=Math.random()<.62,e=document.createElement('div');e.className='t';e.textContent=star?'⭐':'💩';
+  const spawn=i=>{const z=Z[i],star=Math.random()<.56,e=document.createElement('div');e.className='t';e.textContent=star?'⭐':'💩';
     e.style.top='0';e.style.left=(6+Math.random()*68)+'%';z.appendChild(e);
     const a=e.animate([{transform:'translateY(-30px)'},{transform:'translateY('+z.clientHeight+'px)'}],{duration:1100+Math.random()*700});
     a.onfinish=()=>e.remove();
