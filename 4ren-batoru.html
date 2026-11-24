@@ -16,6 +16,8 @@ html,body{height:100%;margin:0;background:#111;font-family:-apple-system,"Hiragi
 #start{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9;font-size:22px;font-weight:800;padding:16px 28px;border-radius:40px;border:4px solid #111;background:#fff;color:#111}
 .t{position:absolute;font-size:46px;padding:10px;z-index:2;line-height:1}
 .o{display:flex;flex-wrap:wrap;justify-content:center;max-width:100%;gap:6px;margin-top:6px}.o.g{display:grid;grid-template-columns:repeat(3,46px)}.o b{background:#fff3;border-radius:12px;padding:10px 0;min-width:46px;font-size:20px;line-height:1.1}.o.g b{min-width:0}
+.okbtn{margin-top:12px;font-size:22px;font-weight:900;padding:12px 34px;border-radius:999px;border:3px solid #fff;background:rgba(0,0,0,.35);color:#fff;z-index:3;cursor:pointer}
+.okbtn.done{background:#fff;color:#111}
 #g.online .z:nth-child(-n+2){transform:none}
 #onlineBtn{position:fixed;left:50%;top:calc(50% + 54px);transform:translateX(-50%);z-index:9;font-size:16px;font-weight:800;padding:12px 22px;border-radius:40px;border:4px solid #111;background:#3b82f6;color:#fff;white-space:nowrap}
 #status{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);z-index:25;background:rgba(0,0,0,.68);color:#fff;font-size:13px;font-weight:700;padding:7px 14px;border-radius:999px;display:none;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
@@ -97,7 +99,36 @@ const all=m=>Z.forEach((_,i)=>set(i,m));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const upd=()=>Z.forEach((z,i)=>z.querySelector('.s').textContent=total[i]+'点');
 const until=async(f,ms)=>{const s=performance.now();while(!f()&&performance.now()-s<ms)await sleep(30)};
-async function cd(t,r){all(t+'\n'+r);const ms=Z.map(z=>z.querySelector('.m'));ms.forEach(m=>m.classList.add('ins'));await sleep(3500);ms.forEach(m=>m.classList.remove('ins'));for(const n of[3,2,1]){all(n);await sleep(700)}}
+async function cd(t,r){all(t+'\n'+r);const ms=Z.map(z=>z.querySelector('.m'));ms.forEach(m=>m.classList.add('ins'));await waitReady();ms.forEach(m=>m.classList.remove('ins'));for(const n of[3,2,1]){all(n);await sleep(700)}}
+let readyState=null;
+function needReady(){return ONLINE?playersArr():[true,true,true,true]}
+function waitReady(){
+  return new Promise(res=>{
+    const need=needReady();
+    readyState={flags:need.map(n=>!n),res};
+    Z.forEach((z,i)=>{
+      if(!need[i])return;
+      const b=document.createElement('button');b.className='okbtn';b.textContent='OK!';
+      b.addEventListener('pointerdown',e=>{e.stopPropagation();markReady(i)});
+      z.appendChild(b);
+    });
+    checkReady();
+  });
+}
+function markReady(i){
+  if(!readyState||readyState.flags[i])return;
+  readyState.flags[i]=true;
+  const b=Z[i].querySelector('.okbtn');if(b){b.textContent='✔ OK';b.classList.add('done')}
+  checkReady();
+}
+function checkReady(){
+  if(!readyState)return;
+  const need=needReady();
+  if(!need.every((n,i)=>!n||readyState.flags[i]))return;
+  Z.forEach(z=>{const b=z.querySelector('.okbtn');if(b)b.remove()});
+  const r=readyState.res;readyState=null;r();
+}
+function pokeReady(){if(!readyState)return;const need=needReady();readyState.flags=readyState.flags.map((f,i)=>f||!need[i]);checkReady()}
 async function award(v){
   const idx=[0,1,2,3].sort((a,b)=>v[a]-v[b]),p=[3,2,1,0];
   idx.forEach((pl,k)=>{const rk=v.filter(x=>x<v[pl]).length;total[pl]+=p[rk];set(pl,(rk+1)+'位\n+'+p[rk]+'点')});
@@ -700,7 +731,7 @@ function createRoom(code,isRestore){
     if(free===undefined){try{conn.send({t:'full'})}catch(e){}setTimeout(()=>{try{conn.close()}catch(e){}},400);return}
     const g={conn,idx:free,lastPong:Date.now()};guests.push(g);conn.send({t:'welcome',idx:free});
     conn.on('data',d=>{if(d&&d.t==='pong'){g.lastPong=Date.now();return}onGuestData(g,d)});
-    conn.on('close',()=>{guests=guests.filter(x=>x!==g);if(!playing)lobbySync()});
+    conn.on('close',()=>{guests=guests.filter(x=>x!==g);if(!playing)lobbySync();pokeReady()});
     lobbySync();if(playing){try{conn.send({t:'phase',p:'playing'})}catch(e){}setTimeout(()=>{try{conn.send(snapMsg())}catch(e){}},300)}})});
   peer.on('disconnected',()=>{if(ROLE!=='host')return;$('lobbyMsg').textContent='接続が切れました。再接続中…';try{peer.reconnect()}catch(e){}});
   peer.on('error',e=>{
