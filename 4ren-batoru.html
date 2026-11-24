@@ -618,11 +618,12 @@ async function hockey(){
   cv.addEventListener('pointerdown',e=>{e.preventDefault();const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,i=(y<H/2?0:2)+(x<W/2?0:1);
     if(pads[i].id!==null)return;pads[i].id=e.pointerId;try{cv.setPointerCapture(e.pointerId)}catch(_){}mvp(i,x,y)});
   cv.addEventListener('pointermove',e=>{const i=pads.findIndex(p=>p.id===e.pointerId);if(i<0)return;const r=cv.getBoundingClientRect();mvp(i,e.clientX-r.left,e.clientY-r.top)});
-  const relp=e=>{const i=pads.findIndex(p=>p.id===e.pointerId);if(i>=0)pads[i].id=null};
+  const relp=e=>{const i=pads.findIndex(p=>p.id===e.pointerId);if(i>=0){pads[i].id=null;pads[i].tx=pads[i].x;pads[i].ty=pads[i].y;pads[i].vx=pads[i].vy=0}};
   cv.addEventListener('pointerup',relp);cv.addEventListener('pointercancel',relp);
   const fin=w=>{state='over';win=w;timer=1800};
   const goal=t=>{sc[t]++;serve(1-t);if(sc[t]>=WIN)fin(t);else{state='goal';timer=1000}};
-  const movePads=h=>pads.forEach(p=>{const dx=p.tx-p.x,dy=p.ty-p.y,d=Math.hypot(dx,dy);
+  const movePads=h=>pads.forEach(p=>{if(p.id===null){p.tx=p.x;p.ty=p.y;p.vx=p.vy=0;return}
+    const dx=p.tx-p.x,dy=p.ty-p.y,d=Math.hypot(dx,dy);
     if(d>.01){const s=Math.min(d,PM*h);p.vx=dx/d*s/h;p.vy=dy/d*s/h;p.x+=dx/d*s;p.y+=dy/d*s}else{p.vx=p.vy=0}});
   const step=dt=>{
     if(state==='play'){const sp0=Math.hypot(puck.vx,puck.vy);if(sp0<5){stillT+=dt*1000;if(stillT>2500){puck.vx=(Math.random()<.5?-1:1)*W*.25;puck.vy=(Math.random()<.5?-1:1)*H*.2;stillT=0}}else stillT=0}
