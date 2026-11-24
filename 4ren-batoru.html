@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>4人バトル!</title>
 <style>
 :root{color-scheme:dark;box-sizing:border-box}
@@ -18,6 +18,7 @@ html,body{height:100%;margin:0;background:#111;font-family:-apple-system,"Hiragi
 .o{display:flex;flex-wrap:wrap;justify-content:center;max-width:100%;gap:6px;margin-top:6px}.o.g{display:grid;grid-template-columns:repeat(3,46px)}.o b{background:#fff3;border-radius:12px;padding:10px 0;min-width:46px;font-size:20px;line-height:1.1}.o.g b{min-width:0}
 .okbtn{margin-top:12px;font-size:22px;font-weight:900;padding:12px 34px;border-radius:999px;border:3px solid #fff;background:rgba(0,0,0,.35);color:#fff;z-index:3;cursor:pointer}
 .okbtn.done{background:#fff;color:#111}
+.z,.t,.o b,button{touch-action:none}
 #g.online .z:nth-child(-n+2){transform:none}
 #onlineBtn{position:fixed;left:50%;top:calc(50% + 54px);transform:translateX(-50%);z-index:9;font-size:16px;font-weight:800;padding:12px 22px;border-radius:40px;border:4px solid #111;background:#3b82f6;color:#fff;white-space:nowrap}
 #status{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);z-index:25;background:rgba(0,0,0,.68);color:#fff;font-size:13px;font-weight:700;padding:7px 14px;border-radius:999px;display:none;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
@@ -89,6 +90,8 @@ function fitView(){
 if(window.visualViewport){visualViewport.addEventListener('resize',fitView);visualViewport.addEventListener('scroll',fitView)}
 window.addEventListener('resize',fitView);
 window.addEventListener('orientationchange',fitView);
+document.addEventListener('gesturestart',e=>e.preventDefault());
+document.addEventListener('dblclick',e=>e.preventDefault(),{passive:false});
 fitView();
 const Z=[...document.querySelectorAll('.z')],B=document.getElementById('start');
 let total=[0,0,0,0],hand=null,up=null;
@@ -99,7 +102,7 @@ const all=m=>Z.forEach((_,i)=>set(i,m));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const upd=()=>Z.forEach((z,i)=>z.querySelector('.s').textContent=total[i]+'点');
 const until=async(f,ms)=>{const s=performance.now();while(!f()&&performance.now()-s<ms)await sleep(30)};
-async function cd(t,r){all(t+'\n'+r);const ms=Z.map(z=>z.querySelector('.m'));ms.forEach(m=>m.classList.add('ins'));await waitReady();ms.forEach(m=>m.classList.remove('ins'));for(const n of[3,2,1]){all(n);await sleep(700)}}
+async function cd(t,r){fitView();all(t+'\n'+r);const ms=Z.map(z=>z.querySelector('.m'));ms.forEach(m=>m.classList.add('ins'));await waitReady();ms.forEach(m=>m.classList.remove('ins'));for(const n of[3,2,1]){all(n);await sleep(700)}}
 let readyState=null;
 function needReady(){return ONLINE?playersArr():[true,true,true,true]}
 function waitReady(){
@@ -340,8 +343,8 @@ async function missile(){
   await cd('🚀ミサイルバトル','もぐらをタップで+1点!\n同時に相手へミサイル発射\n当たった相手は-1点');
   const sc=[0,0,0,0],ts=[];
   const mv=t=>{t.style.left=(10+Math.random()*60)+'%';t.style.top=(18+Math.random()*45)+'%'};
-  const fire=(a,b)=>{const ra=Z[a].getBoundingClientRect(),rb=Z[b].getBoundingClientRect();
-    const x0=ra.left+ra.width/2-18,y0=ra.top+ra.height/2-18,x1=rb.left+rb.width/2-18,y1=rb.top+rb.height/2-18;
+  const fire=(a,b,r0)=>{const rb=Z[b].getBoundingClientRect();
+    const x0=r0.left+r0.width/2-18,y0=r0.top+r0.height/2-18,x1=rb.left+rb.width/2-18,y1=rb.top+rb.height/2-18;
     const rot=Math.atan2(y1-y0,x1-x0)*180/Math.PI+45;
     const m=document.createElement('div');m.textContent='🚀';
     m.style.cssText='position:fixed;left:0;top:0;font-size:36px;line-height:1;z-index:20;pointer-events:none';
@@ -350,8 +353,8 @@ async function missile(){
     an.onfinish=()=>{m.remove();sc[b]=Math.max(0,sc[b]-1);set(b,sc[b]);Z[b].animate([{filter:'brightness(2.5)'},{filter:'none'}],250)}};
   Z.forEach((z,i)=>{for(let q=0;q<4;q++){const t=document.createElement('div');t.className='t';t.textContent='🐹';mv(t);
     t.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();
-      sc[i]++;set(i,sc[i]);mv(t);
-      const ot=[0,1,2,3].filter(k=>k!==i);fire(i,ot[Math.floor(Math.random()*3)])});
+      sc[i]++;set(i,sc[i]);const r0=t.getBoundingClientRect();mv(t);
+      const ot=[0,1,2,3].filter(k=>k!==i);fire(i,ot[Math.floor(Math.random()*3)],r0)});
     z.appendChild(t);ts.push(t)}});
   all(0);await sleep(12000);
   ts.forEach(t=>t.remove());await sleep(900);
