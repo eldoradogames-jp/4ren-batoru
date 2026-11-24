@@ -602,12 +602,12 @@ async function jump(){
   await award(dead.map(x=>x===null?-1e9:-x));
 }
 async function hockey(){
-  await cd('🏒エアホッケー','赤青チーム vs 黄緑チーム\n3点先取で勝ち（60秒）\n勝ったチームの2人に+3点');
-  const WIN=3,LIM=60000,COL=['#e5484d','#3b82f6','#22a559','#d9a400'],TN=['赤青','黄緑'];
+  await cd('🏒エアホッケー','赤青チーム vs 黄緑チーム\n2点先取で勝ち\n勝ったチームの2人に+3点');
+  const WIN=2,COL=['#e5484d','#3b82f6','#22a559','#d9a400'],TN=['赤青','黄緑'];
   const wrap=document.createElement('div');wrap.className='vfit';wrap.style.cssText='position:fixed;left:0;top:0;width:100%;height:100%;z-index:8;box-sizing:border-box;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);background:#0b1220;touch-action:none';
   const cv=document.createElement('canvas');cv.style.cssText='width:100%;height:100%;display:block;touch-action:none';wrap.appendChild(cv);document.body.appendChild(wrap);fitView();window.__cv=cv;
   const g=cv.getContext('2d');
-  let W,H,R,RP,GX0,GX1,PM,VM,sc=[0,0],state='play',timer=0,left=LIM,last=performance.now(),win=-1,raf=0,done=null;
+  let W,H,R,RP,GX0,GX1,PM,VM,sc=[0,0],state='play',timer=0,stillT=0,last=performance.now(),win=-1,raf=0,done=null;
   const pads=[0,1,2,3].map(()=>({x:0,y:0,tx:0,ty:0,vx:0,vy:0,id:null})),puck={x:0,y:0,vx:0,vy:0};
   const serve=c=>{puck.x=W/2;puck.y=c===0?H*.3:H*.7;puck.vx=puck.vy=0};
   const fit=()=>{const d=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*d;cv.height=H*d;g.setTransform(d,0,0,d,0,0);
@@ -625,7 +625,7 @@ async function hockey(){
   const movePads=h=>pads.forEach(p=>{const dx=p.tx-p.x,dy=p.ty-p.y,d=Math.hypot(dx,dy);
     if(d>.01){const s=Math.min(d,PM*h);p.vx=dx/d*s/h;p.vy=dy/d*s/h;p.x+=dx/d*s;p.y+=dy/d*s}else{p.vx=p.vy=0}});
   const step=dt=>{
-    if(state==='play'){left-=dt*1000;if(left<=0)fin(sc[0]>sc[1]?0:sc[1]>sc[0]?1:-1)}
+    if(state==='play'){const sp0=Math.hypot(puck.vx,puck.vy);if(sp0<5){stillT+=dt*1000;if(stillT>2500){puck.vx=(Math.random()<.5?-1:1)*W*.25;puck.vy=(Math.random()<.5?-1:1)*H*.2;stillT=0}}else stillT=0}
     else if(state==='goal'){timer-=dt*1000;if(timer<=0)state='play'}
     else if(state==='over'){timer-=dt*1000;if(timer<=0&&done){const f=done;done=null;f()}}
     for(let s=0;s<4;s++){const h=dt/4;movePads(h);if(state!=='play')continue;
@@ -654,7 +654,6 @@ async function hockey(){
     g.fillStyle='rgba(255,255,255,.18)';g.fillRect(GX0,0,GX1-GX0,8);g.fillRect(GX0,H-8,GX1-GX0,8);
     T(TN[0]+' '+sc[0],W/2,H/2-26,Math.PI,18,'rgba(255,255,255,.8)');
     T(TN[1]+' '+sc[1],W/2,H/2+26,0,18,'rgba(255,255,255,.8)');
-    T(Math.max(0,Math.ceil(left/1000))+'s',W*.9,H/2,0,14,'rgba(255,255,255,.6)');
     pads.forEach((p,i)=>{g.fillStyle=COL[i];g.beginPath();g.arc(p.x,p.y,RP,0,7);g.fill();
       g.lineWidth=4;g.strokeStyle='#fff';g.stroke();g.fillStyle='rgba(0,0,0,.25)';g.beginPath();g.arc(p.x,p.y,RP*.45,0,7);g.fill()});
     g.fillStyle='#fff';g.beginPath();g.arc(puck.x,puck.y,R,0,7);g.fill();g.lineWidth=3;g.strokeStyle='#111';g.stroke();
