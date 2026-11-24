@@ -613,10 +613,12 @@ async function hockey(){
   const fit=()=>{const d=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*d;cv.height=H*d;g.setTransform(d,0,0,d,0,0);
     R=W*.05;RP=W*.085;GX0=W*.26;GX1=W*.74;PM=H*4;VM=H*2;
     pads.forEach((p,i)=>{p.x=p.tx=W*(i%2?.75:.25);p.y=p.ty=i<2?H*.14:H*.86;p.vx=p.vy=0});serve(sc[0]>sc[1]?0:1)};
-  const clampPad=(i,x,y)=>{const l=i%2?W/2:0,r=i%2?W:W/2,t=i<2?0:H/2,b=i<2?H/2:H;return[Math.min(r-RP,Math.max(l+RP,x)),Math.min(b-RP,Math.max(t+RP,y))]};
+  const clampPad=(i,x,y)=>{const t=i<2?0:H/2,b=i<2?H/2:H;return[Math.min(W-RP,Math.max(RP,x)),Math.min(b-RP,Math.max(t+RP,y))]};
   const mvp=(i,x,y)=>{[pads[i].tx,pads[i].ty]=clampPad(i,x,y)};
-  cv.addEventListener('pointerdown',e=>{e.preventDefault();const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,i=(y<H/2?0:2)+(x<W/2?0:1);
-    if(pads[i].id!==null)return;pads[i].id=e.pointerId;try{cv.setPointerCapture(e.pointerId)}catch(_){}mvp(i,x,y)});
+  cv.addEventListener('pointerdown',e=>{e.preventDefault();const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,half=y<H/2?0:1;
+    const cand=[half*2,half*2+1].filter(k=>pads[k].id===null);if(!cand.length)return;
+    const i=cand.reduce((a,b)=>Math.hypot(pads[a].x-x,pads[a].y-y)<=Math.hypot(pads[b].x-x,pads[b].y-y)?a:b);
+    pads[i].id=e.pointerId;try{cv.setPointerCapture(e.pointerId)}catch(_){}mvp(i,x,y)});
   cv.addEventListener('pointermove',e=>{const i=pads.findIndex(p=>p.id===e.pointerId);if(i<0)return;const r=cv.getBoundingClientRect();mvp(i,e.clientX-r.left,e.clientY-r.top)});
   const relp=e=>{const i=pads.findIndex(p=>p.id===e.pointerId);if(i>=0)pads[i].id=null};
   cv.addEventListener('pointerup',relp);cv.addEventListener('pointercancel',relp);
